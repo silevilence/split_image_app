@@ -11,6 +11,12 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集按网格�
 
 两个 Provider 在 `main.dart` 的 `MultiProvider` 中注册，通过 `context.read/watch` 访问。
 
+### 配置服务 (Singleton)
+- **`ConfigService`** - 管理 TOML 配置文件读写
+  - 配置文件路径: 应用根目录下的 `config.toml`
+  - 单例访问: `ConfigService.instance`
+  - 初始化: `await ConfigService.instance.initialize()` (在 `main()` 中调用)
+
 ### 坐标系统（关键概念）
 网格线使用**相对位置 (0.0-1.0)** 存储，与图片尺寸解耦：
 ```dart
@@ -21,6 +27,9 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集按网格�
 
 ### 数据流
 ```
+应用启动 → ConfigService.instance.initialize()
+         → 加载 config.toml (不存在则创建默认)
+
 图片加载 → EditorProvider.loadImage()
          → 智能适配 _applySmartGridFit() 交换行列
          → 生成网格线 _generateGridLines()
@@ -31,6 +40,7 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集按网格�
 
 导出     → ImageProcessor.exportSlices() (Isolate)
          → 使用 image 包裁剪并写入磁盘
+         → 保存导出目录到配置
 ```
 
 ## 开发规范
@@ -51,7 +61,21 @@ provider.endEdit();    // 操作结束
 ### 图片处理
 - 预览生成: `dart:ui` Canvas 内存裁剪
 - 批量导出: `image` 包 + Isolate（因 dart:ui 不能跨 Isolate）
-- 文件格式: PNG/JPG/WEBP
+- 文件格式: PNG/JPG（WebP 编码不支持）
+
+### 配置系统
+- 格式: TOML (使用 `toml` 包)
+- 路径: 应用可执行文件同目录下的 `config.toml`
+- 内容: 导出设置、快捷键绑定、网格默认值
+```dart
+// 读取配置
+final config = ConfigService.instance.config;
+final lastDir = ConfigService.instance.lastExportDirectory;
+
+// 修改配置
+await ConfigService.instance.setDefaultExportFormat('jpg');
+await ConfigService.instance.setToggleModeShortcut('V');
+```
 
 ## 关键文件
 
@@ -61,6 +85,8 @@ provider.endEdit();    // 操作结束
 | `widgets/editor_canvas.dart` | 画布交互：拖拽、悬停、右键菜单、快捷键 |
 | `utils/coordinate_utils.dart` | 坐标转换：屏幕↔图片、线条检测 |
 | `utils/image_processor.dart` | Isolate 导出任务 |
+| `services/config_service.dart` | 配置管理：TOML 读写、快捷键、导出设置 |
+| `models/app_config.dart` | 配置数据模型：ExportConfig, ShortcutsConfig, GridConfig |
 
 ## 构建与运行
 
@@ -82,4 +108,8 @@ flutter build windows     # Release 构建
 修改 `image_processor.dart` 的 `_exportInIsolate()` 方法中的编码逻辑。
 
 ### 添加快捷键
-在 `editor_canvas.dart` 的 `_handleKeyEvent()` 方法中添加 `LogicalKeyboardKey` 处理。
+快捷键现在从配置读取，修改步骤：
+1. 在 `models/app_config.dart` 的 `ShortcutsConfig` 添加新字段
+2. 在 `services/config_service.dart` 添加 setter 方法
+3. 在 `editor_canvas.dart` 的 `_handleKeyEvent()` 中使用 `matchesShortcut()` 检查
+4. 在 `widgets/settings_dialog.dart` 添加 UI 编辑行

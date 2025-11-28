@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../services/config_service.dart';
+
 /// 导出设置结果
 class ExportSettings {
   /// 输出目录
@@ -9,9 +11,13 @@ class ExportSettings {
   /// 文件前缀
   final String prefix;
 
+  /// 导出格式 (png, jpg, webp)
+  final String format;
+
   ExportSettings({
     required this.outputDir,
     required this.prefix,
+    required this.format,
   });
 }
 
@@ -52,17 +58,28 @@ class ExportDialog extends StatefulWidget {
 class _ExportDialogState extends State<ExportDialog> {
   final TextEditingController _prefixController = TextEditingController();
   String? _outputDir;
+  String _selectedFormat = 'png';
   bool _isSelectingDir = false;
 
   @override
   void initState() {
     super.initState();
-    // 使用源文件名作为默认前缀（去掉扩展名）
-    if (widget.sourceFileName != null) {
+    final config = ConfigService.instance.config;
+    
+    // 使用配置的默认前缀，如果为空则使用源文件名
+    if (config.export.defaultPrefix.isNotEmpty) {
+      _prefixController.text = config.export.defaultPrefix;
+    } else if (widget.sourceFileName != null) {
       final name = widget.sourceFileName!;
       final dotIndex = name.lastIndexOf('.');
       _prefixController.text = dotIndex > 0 ? name.substring(0, dotIndex) : name;
     }
+    
+    // 使用配置的默认格式
+    _selectedFormat = config.export.defaultFormat;
+    
+    // 从配置中读取上次导出目录
+    _outputDir = ConfigService.instance.lastExportDirectory;
   }
 
   @override
@@ -103,6 +120,7 @@ class _ExportDialogState extends State<ExportDialog> {
     Navigator.of(context).pop(ExportSettings(
       outputDir: _outputDir!,
       prefix: _prefixController.text.trim(),
+      format: _selectedFormat,
     ));
   }
 
@@ -181,7 +199,29 @@ class _ExportDialogState extends State<ExportDialog> {
             controller: _prefixController,
             placeholder: '留空则不添加前缀',
           ),
+          const SizedBox(height: 16),
+
+          // 导出格式
+          Text(
+            '导出格式',
+            style: theme.typography.body?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
+          ComboBox<String>(
+            value: _selectedFormat,
+            items: const [
+              ComboBoxItem(value: 'png', child: Text('PNG - 无损压缩')),
+              ComboBoxItem(value: 'jpg', child: Text('JPG - 有损压缩，文件小')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedFormat = value);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
 
           // 文件名预览
           Text(
@@ -193,8 +233,8 @@ class _ExportDialogState extends State<ExportDialog> {
           const SizedBox(height: 4),
           Text(
             _prefixController.text.trim().isEmpty
-                ? '1_1.png, 1_2.png, ...'
-                : '${_prefixController.text.trim()}_1_1.png, ${_prefixController.text.trim()}_1_2.png, ...',
+                ? '1_1.$_selectedFormat, 1_2.$_selectedFormat, ...'
+                : '${_prefixController.text.trim()}_1_1.$_selectedFormat, ${_prefixController.text.trim()}_1_2.$_selectedFormat, ...',
             style: theme.typography.caption?.copyWith(
               fontFamily: 'Consolas',
               color: theme.resources.textFillColorSecondary,

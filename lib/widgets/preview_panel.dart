@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/editor_provider.dart';
 import '../providers/preview_provider.dart';
+import '../services/config_service.dart';
 import '../utils/image_processor.dart';
 import 'export_dialog.dart';
 import 'preview_gallery.dart';
@@ -597,6 +598,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
       slices: exportSlices,
       outputDir: settings.outputDir,
       prefix: settings.prefix,
+      format: settings.format,
     );
 
     // 开始导出
@@ -609,7 +611,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
         progressStream: progressStream,
         outputDir: settings.outputDir,
         onComplete: () {
-          // 导出完成后的回调（可选）
+          // 导出完成后保存目录到配置
+          ConfigService.instance.setLastExportDirectory(settings.outputDir);
         },
       );
     }

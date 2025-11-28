@@ -18,11 +18,15 @@ class ExportTask {
   /// 文件前缀
   final String prefix;
 
+  /// 导出格式 (png, jpg, webp)
+  final String format;
+
   ExportTask({
     required this.imageBytes,
     required this.slices,
     required this.outputDir,
     required this.prefix,
+    this.format = 'png',
   });
 
   /// 转换为可跨 Isolate 传递的 Map
@@ -32,6 +36,7 @@ class ExportTask {
       'slices': slices.map((s) => s.toMap()).toList(),
       'outputDir': outputDir,
       'prefix': prefix,
+      'format': format,
     };
   }
 
@@ -42,6 +47,7 @@ class ExportTask {
       slices: (map['slices'] as List).map((s) => ExportSlice.fromMap(s as Map<String, dynamic>)).toList(),
       outputDir: map['outputDir'] as String,
       prefix: map['prefix'] as String,
+      format: map['format'] as String? ?? 'png',
     );
   }
 }
@@ -184,9 +190,10 @@ class ImageProcessor {
         final slice = task.slices[i];
         
         // 生成文件名
+        final ext = task.format.toLowerCase();
         final fileName = task.prefix.isEmpty
-            ? '${slice.suffix}.png'
-            : '${task.prefix}_${slice.suffix}.png';
+            ? '${slice.suffix}.$ext'
+            : '${task.prefix}_${slice.suffix}.$ext';
         final filePath = '${task.outputDir}${Platform.pathSeparator}$fileName';
 
         // 发送进度
@@ -205,9 +212,19 @@ class ImageProcessor {
           height: slice.height,
         );
 
-        // 编码并保存
-        final pngBytes = img.encodePng(cropped);
-        File(filePath).writeAsBytesSync(pngBytes);
+        // 根据格式编码
+        late List<int> encodedBytes;
+        switch (task.format.toLowerCase()) {
+          case 'jpg':
+          case 'jpeg':
+            encodedBytes = img.encodeJpg(cropped, quality: 95);
+            break;
+          case 'png':
+          default:
+            encodedBytes = img.encodePng(cropped);
+            break;
+        }
+        File(filePath).writeAsBytesSync(encodedBytes);
       }
 
       // 完成

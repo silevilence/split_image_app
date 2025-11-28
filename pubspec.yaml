@@ -49,6 +49,9 @@ dependencies:
   # Image Processing
   image: ^4.3.0
   
+  # Configuration
+  toml: ^0.16.0
+  
   # Desktop Features
   window_manager: ^0.4.3
   desktop_drop: ^0.5.0

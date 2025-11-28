@@ -5,9 +5,14 @@ import 'package:window_manager/window_manager.dart';
 import 'providers/editor_provider.dart';
 import 'providers/preview_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/config_service.dart';
+import 'widgets/settings_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化配置服务
+  await ConfigService.instance.initialize();
 
   // 初始化窗口管理器
   await windowManager.ensureInitialized();
@@ -107,6 +112,12 @@ class _TitleBar extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            // 设置按钮
+            _WindowButton(
+              icon: FluentIcons.settings,
+              onPressed: () => SettingsDialog.show(context),
+            ),
+            const SizedBox(width: 8),
             // 窗口控制按钮
             _WindowButton(
               icon: FluentIcons.chrome_minimize,

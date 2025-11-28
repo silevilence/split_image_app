@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/editor_provider.dart';
+import '../services/config_service.dart';
 import '../utils/coordinate_utils.dart';
 import 'grid_painter.dart';
 
@@ -299,12 +300,42 @@ class _EditorCanvasState extends State<EditorCanvas> {
   /// 处理键盘事件
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     final provider = context.read<EditorProvider>();
+    final shortcuts = ConfigService.instance.config.shortcuts;
     
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
       final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+      final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+      final isAltPressed = HardwareKeyboard.instance.isAltPressed;
       
-      // Ctrl+Z: 撤销
-      if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyZ) {
+      // 检查按键是否匹配快捷键配置
+      bool matchesShortcut(String shortcutStr, LogicalKeyboardKey key) {
+        final parts = shortcutStr.split('+').map((s) => s.trim().toLowerCase()).toList();
+        final needsCtrl = parts.contains('ctrl');
+        final needsShift = parts.contains('shift');
+        final needsAlt = parts.contains('alt');
+        final keyPart = parts.where((p) => !['ctrl', 'shift', 'alt'].contains(p)).firstOrNull?.toUpperCase();
+        
+        if (needsCtrl != isCtrlPressed) return false;
+        // 对于字母键，忽略 Shift 状态（因为 Shift+V 和 V 是同一个键）
+        // 只有当快捷键明确要求 Shift 时才检查
+        if (needsShift && !isShiftPressed) return false;
+        if (!needsShift && isShiftPressed) {
+          // 如果快捷键不需要 Shift，但用户按了 Shift
+          // 对于字母键，允许这种情况（大小写无关）
+          // 对于其他键（如 Ctrl+Z），不允许
+          if (needsCtrl || needsAlt) return false;
+        }
+        if (needsAlt != isAltPressed) return false;
+        
+        if (keyPart == null) return false;
+        
+        // 获取当前按键的标签
+        final currentKeyLabel = _getKeyLabel(key);
+        return currentKeyLabel?.toUpperCase() == keyPart;
+      }
+      
+      // 撤销
+      if (matchesShortcut(shortcuts.undo, event.logicalKey)) {
         if (provider.canUndo) {
           provider.undo();
           displayInfoBar(
@@ -320,8 +351,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
         return KeyEventResult.ignored;
       }
       
-      // Ctrl+Y: 重做
-      if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyY) {
+      // 重做
+      if (matchesShortcut(shortcuts.redo, event.logicalKey)) {
         if (provider.canRedo) {
           provider.redo();
           displayInfoBar(
@@ -337,6 +368,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
         return KeyEventResult.ignored;
       }
       
+      // 切换模式 (不需要编辑模式)
+      if (matchesShortcut(shortcuts.toggleMode, event.logicalKey)) {
+        provider.toggleEditMode();
+        return KeyEventResult.handled;
+      }
+      
       // 以下操作需要编辑模式且有选中线
       if (!provider.isEditMode || !provider.hasSelectedLine || provider.imageSize == null) {
         return KeyEventResult.ignored;
@@ -344,9 +381,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
       final imageSize = provider.imageSize!;
       
-      // Delete 键删除选中的线
-      if (event.logicalKey == LogicalKeyboardKey.delete ||
-          event.logicalKey == LogicalKeyboardKey.backspace) {
+      // 删除线条
+      if (matchesShortcut(shortcuts.deleteLine, event.logicalKey)) {
         provider.deleteSelectedLine();
         return KeyEventResult.handled;
       }
@@ -376,6 +412,44 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
     return KeyEventResult.ignored;
   }
+  
+  /// 获取按键标签
+  String? _getKeyLabel(LogicalKeyboardKey key) {
+    final specialKeys = {
+      LogicalKeyboardKey.delete: 'Delete',
+      LogicalKeyboardKey.backspace: 'Backspace',
+      LogicalKeyboardKey.enter: 'Enter',
+      LogicalKeyboardKey.tab: 'Tab',
+      LogicalKeyboardKey.space: 'Space',
+      LogicalKeyboardKey.arrowUp: 'Up',
+      LogicalKeyboardKey.arrowDown: 'Down',
+      LogicalKeyboardKey.arrowLeft: 'Left',
+      LogicalKeyboardKey.arrowRight: 'Right',
+      LogicalKeyboardKey.f1: 'F1',
+      LogicalKeyboardKey.f2: 'F2',
+      LogicalKeyboardKey.f3: 'F3',
+      LogicalKeyboardKey.f4: 'F4',
+      LogicalKeyboardKey.f5: 'F5',
+      LogicalKeyboardKey.f6: 'F6',
+      LogicalKeyboardKey.f7: 'F7',
+      LogicalKeyboardKey.f8: 'F8',
+      LogicalKeyboardKey.f9: 'F9',
+      LogicalKeyboardKey.f10: 'F10',
+      LogicalKeyboardKey.f11: 'F11',
+      LogicalKeyboardKey.f12: 'F12',
+    };
+
+    if (specialKeys.containsKey(key)) {
+      return specialKeys[key];
+    }
+
+    final keyLabel = key.keyLabel;
+    if (keyLabel.isNotEmpty && keyLabel.length == 1) {
+      return keyLabel.toUpperCase();
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -401,16 +475,14 @@ class _EditorCanvasState extends State<EditorCanvas> {
         Expanded(
           child: GestureDetector(
             onTap: () {
-              // 点击画布区域时请求焦点
-              if (provider.isEditMode) {
-                _focusNode.requestFocus();
-              }
+              // 点击画布区域时请求焦点（无论是否编辑模式）
+              _focusNode.requestFocus();
             },
             child: Focus(
               focusNode: _focusNode,
               onKeyEvent: _handleKeyEvent,
               // 自动获得焦点
-              autofocus: false,
+              autofocus: true,
               child: Container(
                 color: theme.micaBackgroundColor,
                 child: InteractiveViewer(
