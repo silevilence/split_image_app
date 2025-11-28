@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -5,7 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../providers/editor_provider.dart';
 import '../providers/preview_provider.dart';
+import '../utils/image_processor.dart';
+import 'export_dialog.dart';
 import 'preview_gallery.dart';
+import 'progress_dialog.dart';
 
 /// 右侧预览与控制面板
 class PreviewPanel extends StatefulWidget {
@@ -542,6 +547,74 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
+  /// 导出选中的切片
+  Future<void> _exportSlices() async {
+    final editorProvider = context.read<EditorProvider>();
+    final previewProvider = context.read<PreviewProvider>();
+
+    // 检查是否有选中的切片
+    final selectedSlices = previewProvider.slices.where((s) => s.isSelected).toList();
+    if (selectedSlices.isEmpty) {
+      await displayInfoBar(
+        context,
+        builder: (context, close) => InfoBar(
+          title: const Text('没有选中的切片'),
+          content: const Text('请先选中要导出的切片'),
+          severity: InfoBarSeverity.warning,
+          onClose: close,
+        ),
+      );
+      return;
+    }
+
+    // 获取源文件名
+    final sourceFileName = editorProvider.imageFile?.path.split('\\').last ??
+        editorProvider.imageFile?.path.split('/').last;
+
+    // 显示导出设置对话框
+    final settings = await ExportDialog.show(
+      context,
+      sourceFileName: sourceFileName,
+      selectedCount: selectedSlices.length,
+    );
+
+    if (settings == null) return;
+
+    // 读取原图字节数据
+    final imageBytes = await editorProvider.imageFile!.readAsBytes();
+
+    // 构建导出任务
+    final exportSlices = selectedSlices.map((slice) => ExportSlice(
+      x: slice.region.left.toInt(),
+      y: slice.region.top.toInt(),
+      width: slice.region.width.toInt(),
+      height: slice.region.height.toInt(),
+      suffix: slice.customSuffix,
+    )).toList();
+
+    final task = ExportTask(
+      imageBytes: imageBytes,
+      slices: exportSlices,
+      outputDir: settings.outputDir,
+      prefix: settings.prefix,
+    );
+
+    // 开始导出
+    final progressStream = ImageProcessor.exportSlices(task);
+
+    // 显示进度对话框
+    if (mounted) {
+      await ProgressDialog.show(
+        context,
+        progressStream: progressStream,
+        outputDir: settings.outputDir,
+        onComplete: () {
+          // 导出完成后的回调（可选）
+        },
+      );
+    }
+  }
+
   /// 构建预览区
   Widget _buildPreviewSection(FluentThemeData theme, EditorProvider provider) {
     final previewProvider = context.watch<PreviewProvider>();
@@ -584,6 +657,21 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const Icon(FluentIcons.grid_view_medium, size: 16),
               const SizedBox(width: 8),
               Text(previewProvider.isGenerating ? '生成中...' : '生成预览'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 导出按钮
+        Button(
+          onPressed: previewProvider.hasPreview && previewProvider.selectedCount > 0
+              ? _exportSlices
+              : null,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(FluentIcons.save, size: 16),
+              const SizedBox(width: 8),
+              Text('导出选中 (${previewProvider.selectedCount})'),
             ],
           ),
         ),

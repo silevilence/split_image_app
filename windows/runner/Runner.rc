@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "split_image_app" "\0"
+            VALUE "CompanyName", "silevilence" "\0"
+            VALUE "FileDescription", "SmartGridSlicer - 贴纸图集切割工具" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "split_image_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "split_image_app.exe" "\0"
-            VALUE "ProductName", "split_image_app" "\0"
+            VALUE "InternalName", "SmartGridSlicer" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 silevilence. All rights reserved." "\0"
+            VALUE "OriginalFilename", "SmartGridSlicer.exe" "\0"
+            VALUE "ProductName", "SmartGridSlicer" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
