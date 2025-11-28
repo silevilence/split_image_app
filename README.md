@@ -1,16 +1,112 @@
-# split_image_app
+# SmartGridSlicer
 
-A new Flutter project.
+<p align="center">
+  <img src="windows/runner/resources/app_icon.ico" width="128" height="128" alt="SmartGridSlicer Icon">
+</p>
 
-## Getting Started
+**SmartGridSlicer** 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker Sheet) 按网格切割成独立图片。
 
-This project is a starting point for a Flutter application.
+## ✨ 功能特性
 
-A few resources to get you started if this is your first Flutter project:
+- 🖼️ **图片导入** - 支持拖拽或点击选择 PNG/JPG/WEBP 图片
+- 📐 **智能网格** - 自动根据图片方向适配行列设置
+- 🎯 **可视化编辑** - 拖拽调整网格线位置，支持键盘微调
+- ↩️ **撤销/重做** - 完整的编辑历史记录（最多 50 步）
+- 👁️ **实时预览** - 生成切片缩略图，支持批量选择
+- 📝 **自定义命名** - 可编辑每个切片的导出文件名
+- 💾 **批量导出** - 后台处理，显示进度，支持打开导出文件夹
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 📸 截图
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<!-- 如有截图可在此添加 -->
+
+## 🚀 快速开始
+
+### 系统要求
+
+- Windows 10/11
+- 无需安装其他运行时
+
+### 下载
+
+从 [Releases](https://github.com/silevilence/split_image_app/releases) 页面下载最新版本。
+
+### 从源码构建
+
+```powershell
+# 克隆仓库
+git clone https://github.com/silevilence/split_image_app.git
+cd split_image_app
+
+# 安装依赖
+flutter pub get
+
+# 构建 Release 版本
+flutter build windows
+
+# 可执行文件位于
+# build\windows\x64\runner\Release\split_image_app.exe
+```
+
+## 📖 使用说明
+
+1. **导入图片** - 拖拽图片到窗口，或点击「选择图片」按钮
+2. **设置网格** - 输入行数和列数，网格线会自动均分
+3. **调整网格线** - 切换到「编辑」模式，拖拽网格线微调位置
+4. **生成预览** - 点击「生成预览」查看切片效果
+5. **选择切片** - 勾选需要导出的切片，支持拖拽批量选择
+6. **导出** - 点击「导出选中」，选择输出目录和文件前缀
+
+### 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+Z` | 撤销 |
+| `Ctrl+Y` | 重做 |
+| `方向键` | 微调选中的网格线 |
+| `Delete` | 删除选中的网格线 |
+| `右键` | 上下文菜单（添加/删除网格线） |
+
+## 🛠️ 技术栈
+
+- **框架**: Flutter 3.x (Windows Desktop)
+- **UI 库**: fluent_ui (Windows 11 风格)
+- **状态管理**: Provider
+- **图片处理**: image 包 + Isolate 后台处理
+
+## 📁 项目结构
+
+```
+lib/
+├── main.dart              # 应用入口
+├── models/                # 数据模型
+│   ├── grid_config.dart
+│   ├── grid_line.dart
+│   ├── editor_history.dart
+│   └── slice_preview.dart
+├── providers/             # 状态管理
+│   ├── editor_provider.dart
+│   └── preview_provider.dart
+├── screens/
+│   └── home_screen.dart   # 主页面
+├── widgets/               # UI 组件
+│   ├── editor_canvas.dart
+│   ├── grid_painter.dart
+│   ├── preview_panel.dart
+│   ├── preview_gallery.dart
+│   ├── slice_item.dart
+│   ├── export_dialog.dart
+│   └── progress_dialog.dart
+└── utils/
+    ├── coordinate_utils.dart
+    └── image_processor.dart
+```
+
+## 📄 许可证
+
+MIT License
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
