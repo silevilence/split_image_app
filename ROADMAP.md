@@ -3,7 +3,8 @@
 > **项目名称:** SmartGridSlicer  
 > **目标平台:** Windows Desktop  
 > **技术栈:** Flutter + Provider + fluent_ui  
-> **创建日期:** 2025-11-28
+> **创建日期:** 2025-11-28  
+> **最后更新:** 2025-11-28
 
 ---
 
@@ -13,8 +14,222 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 - 交互式网格线拖拽调整
 - 智能行列适配
 - 批量预览与选择导出
+- 智能网格识别算法 (规划中)
 
 ---
+
+# 🗂️ 新功能看板 (Kanban Board)
+
+## 🚧 开发中 (In Progress)
+
+### Feature: 设置系统与数据持久化 (Settings & Persistence)
+**优先级:** 🔴 高  
+**预计工时:** 3-4h
+
+#### 📝 Description
+实现应用配置的持久化存储，支持自定义快捷键绑定和导出历史记忆。
+
+#### ✅ Checklist
+- [ ] 引入 `toml` 包处理配置文件格式
+- [ ] 使用 `path_provider` 定位配置文件存储路径
+- [ ] 创建 `ConfigService` 管理配置读写
+- [ ] 实现默认配置自动生成 (首次启动)
+- [ ] 自定义快捷键绑定 (Key Bindings) 数据结构
+- [ ] Export History: 记忆上次导出路径 (Last Export Directory)
+- [ ] 导出对话框默认使用上次路径
+- [ ] 设置界面 UI (可选)
+
+#### 🔧 Technical Considerations
+- **Config Format:** 必须使用 TOML 格式
+- **Storage Path:** `%APPDATA%/SmartGridSlicer/config.toml`
+- **配置结构示例:**
+  ```toml
+  [export]
+  last_directory = "C:/Users/xxx/Pictures"
+  default_prefix = "slice"
+  default_format = "png"
+
+  [shortcuts]
+  toggle_mode = "V"
+  delete_line = "Delete"
+  undo = "Ctrl+Z"
+  redo = "Ctrl+Y"
+  
+  [grid]
+  default_rows = 3
+  default_cols = 3
+  ```
+- **热重载:** 配置修改后立即生效，无需重启应用
+- **错误处理:** 配置文件损坏时自动重置为默认值
+
+#### 📁 产出文件
+```
+lib/
+├── services/
+│   └── config_service.dart
+├── models/
+│   └── app_config.dart
+└── providers/
+    └── config_provider.dart (可选)
+```
+
+---
+
+## 📅 计划开发 (Planned)
+
+### Feature: 🧠 智能网格初始化算法 (Smart Grid Algorithm)
+**优先级:** 🔴 高  
+**预计工时:** 4-6h
+
+#### 📝 Description
+基于投影分析法 (Projection Profile) 自动识别贴纸缝隙，减少人工调整网格线的工作量。
+
+#### ✅ Checklist
+- [ ] 实现 Vertical Projection (垂直投影) 计算
+- [ ] 实现 Horizontal Projection (水平投影) 计算
+- [ ] 波谷检测算法 (Valley Detection)
+- [ ] 网格线 Snap 到波谷中心
+- [ ] 在 Isolate 中运行分析任务
+- [ ] "Smart Detect" 按钮触发分析
+- [ ] 分析进度指示器
+- [ ] 阈值参数可调 (可选)
+
+#### 🔧 Technical Considerations
+- **Implementation:** 必须在 `compute` (Isolate) 中运行，避免阻塞 UI
+- **Algorithm Steps:**
+  ```dart
+  // Step A: 计算投影
+  List<int> verticalProjection = [];  // 每列的灰度/Alpha值求和
+  List<int> horizontalProjection = []; // 每行的灰度/Alpha值求和
+  
+  // Step B: 寻找波谷 (低于平均值的区域)
+  List<int> valleys = findValleys(projection, threshold);
+  
+  // Step C: 将网格线对齐到波谷中心
+  List<double> gridLines = valleys.map((v) => v / imageSize).toList();
+  ```
+- **投影计算:** 
+  - 对于 Alpha 通道: 透明区域 Alpha=0，贴纸区域 Alpha=255
+  - 缝隙区域投影值低，贴纸区域投影值高
+- **波谷检测:** 使用滑动窗口寻找局部最小值
+- **边界处理:** 排除图片边缘的假波谷
+
+#### 📁 产出文件
+```
+lib/
+├── utils/
+│   └── smart_grid_detector.dart
+└── widgets/
+    └── smart_detect_button.dart (可选)
+```
+
+---
+
+### Feature: 图片边缘留白控制 (Margins / Effective Area)
+**优先级:** 🟡 中  
+**预计工时:** 2-3h
+
+#### 📝 Description
+允许用户指定图片四周的留白区域，排除不参与网格计算的边缘白边。
+
+#### ✅ Checklist
+- [ ] Margins 数据模型 (Top, Bottom, Left, Right)
+- [ ] 侧边栏 "Margins" 输入框 UI
+- [ ] `Effective Rect` 计算逻辑
+- [ ] 网格线生成限制在 Effective Rect 范围内
+- [ ] 智能算法仅分析 Effective Rect 区域
+- [ ] 画布上可视化显示 Margins 边界 (半透明遮罩)
+- [ ] Margins 预设值 (可选)
+
+#### 🔧 Technical Considerations
+- **Problem:** 排除贴纸四周不参与计算的白边
+- **Effective Rect 定义:**
+  ```dart
+  Rect effectiveRect = Rect.fromLTRB(
+    margins.left,
+    margins.top,
+    imageWidth - margins.right,
+    imageHeight - margins.bottom,
+  );
+  ```
+- **网格线相对位置调整:**
+  - 相对位置 0.0 对应 `effectiveRect.left` 而非图片左边缘
+  - 相对位置 1.0 对应 `effectiveRect.right` 而非图片右边缘
+- **可视化:** 在 Effective Rect 外的区域绘制半透明灰色遮罩
+
+#### 📁 产出文件
+```
+lib/
+├── models/
+│   └── margins.dart
+├── widgets/
+│   └── margins_input.dart
+└── providers/
+    └── editor_provider.dart (更新)
+```
+
+---
+
+### Feature: 快捷键与模式切换增强 (Shortcuts & Mode Switching)
+**优先级:** 🟡 中  
+**预计工时:** 2-3h
+
+#### 📝 Description
+引入 Flutter 标准的 Shortcuts/Actions 系统，提供更灵活的快捷键配置和模式切换。
+
+#### ✅ Checklist
+- [ ] 迁移至 Flutter `Shortcuts` / `Actions` 系统
+- [ ] View Mode 快捷键切换 (预览/拖拽画布)
+- [ ] Edit Mode 快捷键切换 (调整切割线)
+- [ ] 快捷键与配置系统集成 (从 config.toml 读取)
+- [ ] 快捷键冲突检测
+- [ ] 快捷键提示 (Tooltip 显示快捷键)
+
+#### 🔧 Technical Considerations
+- **Shortcuts Widget 结构:**
+  ```dart
+  Shortcuts(
+    shortcuts: {
+      LogicalKeySet(LogicalKeyboardKey.keyV): ToggleModeIntent(),
+      LogicalKeySet(LogicalKeyboardKey.delete): DeleteLineIntent(),
+      // ...从配置文件读取
+    },
+    child: Actions(
+      actions: {
+        ToggleModeIntent: CallbackAction<ToggleModeIntent>(...),
+        DeleteLineIntent: CallbackAction<DeleteLineIntent>(...),
+      },
+      child: ...,
+    ),
+  )
+  ```
+- **Intent 类定义:** 为每个操作创建对应的 Intent 类
+- **配置同步:** 快捷键修改后实时更新 Shortcuts 映射
+
+#### 📁 产出文件
+```
+lib/
+├── shortcuts/
+│   ├── app_intents.dart
+│   └── shortcut_manager.dart
+└── widgets/
+    └── shortcut_wrapper.dart
+```
+
+---
+
+## 🎯 新功能里程碑概览
+
+| Feature | 优先级 | 预计工时 | 状态 |
+|---------|--------|---------|------|
+| 设置系统与数据持久化 | 🔴 高 | 3-4h | 🚧 开发中 |
+| 智能网格初始化算法 | 🔴 高 | 4-6h | 📅 计划中 |
+| 图片边缘留白控制 | 🟡 中 | 2-3h | 📅 计划中 |
+| 快捷键与模式切换增强 | 🟡 中 | 2-3h | 📅 计划中 |
+
+---
+
+# ✅ 已完成阶段 (Completed Phases)
 
 ## 🚀 开发阶段
 
@@ -226,6 +441,7 @@ dependencies:
   image: ^4.2.0              # 图片裁剪处理
   window_manager: ^0.3.9     # 窗口控制
   path: ^1.9.0               # 路径处理
+  toml: ^0.15.0              # TOML 配置文件解析 (新增)
 ```
 
 ---
@@ -253,6 +469,7 @@ dependencies:
 - **2025-11-28:** Phase 3 完成 - 线条选中、右键菜单、键盘微调、撤销/重做功能
 - **2025-11-28:** Phase 4 完成 - 预览系统、切片生成、选择功能（全选/全不选/反选）
 - **2025-11-28:** Phase 5 完成 - 导出功能、进度对话框、Isolate 批量处理
+- **2025-11-28:** 重构 ROADMAP 为看板模式，添加新功能规划 (Settings, Smart Grid, Margins, Shortcuts)
 
 ---
 
@@ -261,5 +478,7 @@ dependencies:
 1. **大图性能:** 10000x10000+ 像素图片的渲染和裁剪性能需要测试
 2. **内存占用:** 多个大切片同时在内存中可能导致内存压力
 3. **Isolate 限制:** `dart:ui` 的 `Image` 对象不能跨 Isolate 传递，需使用 `image` 包
+4. **投影算法精度:** 智能网格检测对低对比度图片可能效果不佳
+5. **TOML 解析:** 需验证 `toml` 包对复杂配置的支持程度
 
 ---
