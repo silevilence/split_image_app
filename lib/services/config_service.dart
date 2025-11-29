@@ -5,14 +5,15 @@ import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 
 import '../models/app_config.dart';
+import '../models/grid_algorithm_type.dart';
 
 /// 配置服务 - 管理应用配置的读写和持久化
-/// 
+///
 /// 使用单例模式，通过 [ConfigService.instance] 访问。
 /// 配置文件使用 TOML 格式存储在软件根目录下的 `config.toml`。
 class ConfigService extends ChangeNotifier {
   static ConfigService? _instance;
-  
+
   /// 获取单例实例
   static ConfigService get instance {
     _instance ??= ConfigService._();
@@ -26,7 +27,7 @@ class ConfigService extends ChangeNotifier {
 
   /// 当前配置
   AppConfig _config = AppConfig.defaults();
-  
+
   /// 获取当前配置
   AppConfig get config => _config;
 
@@ -35,12 +36,12 @@ class ConfigService extends ChangeNotifier {
 
   /// 是否已初始化
   bool _initialized = false;
-  
+
   /// 是否已初始化
   bool get initialized => _initialized;
 
   /// 初始化配置服务
-  /// 
+  ///
   /// 会尝试从配置文件加载配置，如果文件不存在则创建默认配置。
   Future<void> initialize() async {
     if (_initialized) return;
@@ -49,12 +50,12 @@ class ConfigService extends ChangeNotifier {
       // 获取应用程序所在目录
       final exePath = Platform.resolvedExecutable;
       final appDir = p.dirname(exePath);
-      
+
       _configFilePath = p.join(appDir, _configFileName);
-      
+
       // 尝试加载配置
       await _loadConfig();
-      
+
       _initialized = true;
       debugPrint('[ConfigService] Initialized. Config path: $_configFilePath');
     } catch (e) {
@@ -70,7 +71,7 @@ class ConfigService extends ChangeNotifier {
     if (_configFilePath == null) return;
 
     final file = File(_configFilePath!);
-    
+
     if (await file.exists()) {
       try {
         final content = await file.readAsString();
@@ -78,7 +79,9 @@ class ConfigService extends ChangeNotifier {
         _config = AppConfig.fromMap(tomlDoc.toMap());
         debugPrint('[ConfigService] Config loaded successfully');
       } catch (e) {
-        debugPrint('[ConfigService] Failed to parse config, using defaults: $e');
+        debugPrint(
+          '[ConfigService] Failed to parse config, using defaults: $e',
+        );
         _config = AppConfig.defaults();
         // 备份损坏的配置文件
         await _backupCorruptedConfig(file);
@@ -96,7 +99,8 @@ class ConfigService extends ChangeNotifier {
   /// 备份损坏的配置文件
   Future<void> _backupCorruptedConfig(File file) async {
     try {
-      final backupPath = '${file.path}.backup.${DateTime.now().millisecondsSinceEpoch}';
+      final backupPath =
+          '${file.path}.backup.${DateTime.now().millisecondsSinceEpoch}';
       await file.copy(backupPath);
       debugPrint('[ConfigService] Corrupted config backed up to: $backupPath');
     } catch (e) {
@@ -109,56 +113,17 @@ class ConfigService extends ChangeNotifier {
     if (_configFilePath == null) return;
 
     try {
-      final content = _generateTomlContent();
+      // 使用 TomlDocument.fromMap 生成 TOML 内容
+      final tomlDoc = TomlDocument.fromMap(_config.toMap());
+      final content =
+          '# SmartGridSlicer Configuration\n'
+          '# Auto-generated - Do not edit manually unless you know what you are doing\n\n'
+          '${tomlDoc.toString()}';
       await File(_configFilePath!).writeAsString(content);
       debugPrint('[ConfigService] Config saved');
     } catch (e) {
       debugPrint('[ConfigService] Failed to save config: $e');
     }
-  }
-
-  /// 生成 TOML 格式内容
-  String _generateTomlContent() {
-    final buffer = StringBuffer();
-    
-    // 文件头注释
-    buffer.writeln('# SmartGridSlicer Configuration');
-    buffer.writeln('# Auto-generated - Do not edit manually unless you know what you are doing');
-    buffer.writeln();
-
-    // Export 配置
-    buffer.writeln('[export]');
-    if (_config.export.lastDirectory != null) {
-      buffer.writeln('last_directory = "${_escapeTomlString(_config.export.lastDirectory!)}"');
-    }
-    buffer.writeln('default_prefix = "${_escapeTomlString(_config.export.defaultPrefix)}"');
-    buffer.writeln('default_format = "${_config.export.defaultFormat}"');
-    buffer.writeln();
-
-    // Shortcuts 配置
-    buffer.writeln('[shortcuts]');
-    buffer.writeln('toggle_mode = "${_config.shortcuts.toggleMode}"');
-    buffer.writeln('delete_line = "${_config.shortcuts.deleteLine}"');
-    buffer.writeln('undo = "${_config.shortcuts.undo}"');
-    buffer.writeln('redo = "${_config.shortcuts.redo}"');
-    buffer.writeln();
-
-    // Grid 配置
-    buffer.writeln('[grid]');
-    buffer.writeln('default_rows = ${_config.grid.defaultRows}');
-    buffer.writeln('default_cols = ${_config.grid.defaultCols}');
-
-    return buffer.toString();
-  }
-
-  /// 转义 TOML 字符串中的特殊字符
-  String _escapeTomlString(String value) {
-    return value
-        .replaceAll('\\', '\\\\')
-        .replaceAll('"', '\\"')
-        .replaceAll('\n', '\\n')
-        .replaceAll('\r', '\\r')
-        .replaceAll('\t', '\\t');
   }
 
   // ==================== 配置更新方法 ====================
@@ -197,6 +162,16 @@ class ConfigService extends ChangeNotifier {
   /// 更新网格默认列数
   Future<void> setDefaultCols(int cols) async {
     _config.grid.defaultCols = cols;
+    await _saveConfig();
+    notifyListeners();
+  }
+
+  /// 获取默认网格算法
+  GridAlgorithmType get defaultAlgorithm => _config.grid.defaultAlgorithm;
+
+  /// 更新默认网格算法
+  Future<void> setDefaultAlgorithm(GridAlgorithmType algorithm) async {
+    _config.grid.defaultAlgorithm = algorithm;
     await _saveConfig();
     notifyListeners();
   }

@@ -1,6 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../models/grid_algorithm_type.dart';
+import '../providers/editor_provider.dart';
 import '../services/config_service.dart';
 import '../shortcuts/shortcut_manager.dart';
 
@@ -27,6 +30,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
   late TextEditingController _colsController;
   late TextEditingController _prefixController;
   late String _selectedFormat;
+  late GridAlgorithmType _selectedAlgorithm;
 
   // 快捷键编辑状态
   late String _toggleModeShortcut;
@@ -48,6 +52,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
       text: config.export.defaultPrefix,
     );
     _selectedFormat = config.export.defaultFormat;
+    _selectedAlgorithm = config.grid.defaultAlgorithm;
 
     // 初始化快捷键
     _toggleModeShortcut = config.shortcuts.toggleMode;
@@ -70,6 +75,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
     await _configService.setDefaultRows(rows.clamp(1, 20));
     await _configService.setDefaultCols(cols.clamp(1, 20));
+    await _configService.setDefaultAlgorithm(_selectedAlgorithm);
     await _configService.setDefaultExportPrefix(_prefixController.text.trim());
     await _configService.setDefaultExportFormat(_selectedFormat);
 
@@ -102,6 +108,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
       _colsController.text = config.grid.defaultCols.toString();
       _prefixController.text = config.export.defaultPrefix;
       _selectedFormat = config.export.defaultFormat;
+      _selectedAlgorithm = config.grid.defaultAlgorithm;
       _toggleModeShortcut = config.shortcuts.toggleMode;
       _deleteLineShortcut = config.shortcuts.deleteLine;
       _undoShortcut = config.shortcuts.undo;
@@ -196,39 +203,89 @@ class _SettingsDialogState extends State<SettingsDialog> {
   }
 
   Widget _buildGridSettings(FluentThemeData theme) {
-    return Row(
+    // 获取所有算法类型（包括未实现的，显示在 UI 上）
+    final allAlgorithms = GridAlgorithmType.values;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: InfoLabel(
-            label: '默认行数',
-            child: NumberBox<int>(
-              value: int.tryParse(_rowsController.text),
-              min: 1,
-              max: 20,
-              mode: SpinButtonPlacementMode.inline,
-              onChanged: (value) {
-                if (value != null) {
-                  _rowsController.text = value.toString();
-                }
-              },
+        Row(
+          children: [
+            Expanded(
+              child: InfoLabel(
+                label: '默认行数',
+                child: NumberBox<int>(
+                  value: int.tryParse(_rowsController.text),
+                  min: 1,
+                  max: 20,
+                  mode: SpinButtonPlacementMode.inline,
+                  onChanged: (value) {
+                    if (value != null) {
+                      _rowsController.text = value.toString();
+                    }
+                  },
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: InfoLabel(
+                label: '默认列数',
+                child: NumberBox<int>(
+                  value: int.tryParse(_colsController.text),
+                  min: 1,
+                  max: 20,
+                  mode: SpinButtonPlacementMode.inline,
+                  onChanged: (value) {
+                    if (value != null) {
+                      _colsController.text = value.toString();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: InfoLabel(
-            label: '默认列数',
-            child: NumberBox<int>(
-              value: int.tryParse(_colsController.text),
-              min: 1,
-              max: 20,
-              mode: SpinButtonPlacementMode.inline,
-              onChanged: (value) {
-                if (value != null) {
-                  _colsController.text = value.toString();
-                }
-              },
-            ),
+        const SizedBox(height: 12),
+        InfoLabel(
+          label: '默认网格算法',
+          child: ComboBox<GridAlgorithmType>(
+            value: _selectedAlgorithm,
+            items: allAlgorithms.map((type) {
+              return ComboBoxItem(
+                value: type,
+                child: Tooltip(
+                  message: type.description,
+                  child: Text(
+                    type.displayName,
+                    style: type.isImplemented
+                        ? null
+                        : TextStyle(
+                            color: theme.resources.textFillColorDisabled,
+                          ),
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: (value) async {
+              if (value != null && value.isImplemented) {
+                setState(() => _selectedAlgorithm = value);
+                // 立即应用到 EditorProvider，实时预览效果
+                final editorProvider = context.read<EditorProvider>();
+                await editorProvider.setAlgorithmType(value);
+              } else if (value != null && !value.isImplemented) {
+                // 未实现的算法，显示提示
+                displayInfoBar(
+                  context,
+                  builder: (context, close) => InfoBar(
+                    title: Text('${value.displayName}'),
+                    content: const Text('该算法正在开发中，敬请期待！'),
+                    severity: InfoBarSeverity.warning,
+                    onClose: close,
+                  ),
+                );
+              }
+            },
           ),
         ),
       ],

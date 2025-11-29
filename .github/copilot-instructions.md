@@ -154,3 +154,46 @@ flutter build windows     # Release 构建
 - **集成方式:** 在 `main.dart` 的 `_MainWindow` 中用 `ShortcutWrapper` 包装整个应用
 - **方向键微调:** 因需要支持 `KeyRepeatEvent`，保留在 `editor_canvas.dart` 的 `_handleKeyEvent` 中单独处理
 - **配置同步:** `AppShortcutManager` 监听 `ConfigService` 变化，自动更新快捷键映射
+
+### Grid Algorithm Strategy Pattern (2025-11-29)
+- **架构:** 使用策略模式 (Strategy Pattern) 解耦网格生成算法
+- **文件结构:**
+  - `lib/models/grid_algorithm_type.dart` - 算法类型枚举 (fixedEvenSplit, projectionProfile, edgeDetection)
+  - `lib/models/grid_generator_input.dart` - 标准输入参数模型
+  - `lib/models/grid_generator_result.dart` - 标准输出结果模型
+  - `lib/strategies/grid_generator_strategy.dart` - 抽象基类
+  - `lib/strategies/grid_strategy_factory.dart` - 工厂类
+  - `lib/strategies/fixed_even_split_strategy.dart` - 均匀分割策略实现
+  - `lib/strategies/projection_profile_strategy.dart` - 投影分析策略实现
+- **扩展方式:** 新增算法只需:
+  1. 在 `GridAlgorithmType` 添加枚举值
+  2. 在 `GridStrategyFactory.create()` 添加 switch case
+  3. 创建新的策略实现类
+- **配置集成:** `app_config.dart` 的 `GridConfig` 包含 `defaultAlgorithm` 字段
+- **Provider 集成:** `EditorProvider._generateGridLines()` 使用策略工厂创建算法实例
+- **边距建议:** 算法可通过 `GridGeneratorResult.suggestedMargins` 返回建议边距
+
+### Projection Profile Algorithm (2025-11-29)
+- **实现文件:** `lib/strategies/projection_profile_strategy.dart`
+- **背景检测:** 自动识别透明/浅色/深色三种背景类型
+  - 采样图片四边像素，计算透明度和亮度
+  - 透明背景: 使用 Alpha 通道投影
+  - 浅色/深色背景: 使用亮度投影，方向相反
+- **投影计算:**
+  - 水平投影: 每行像素值求和，用于检测水平分割线
+  - 垂直投影: 每列像素值求和，用于检测垂直分割线
+- **波谷检测:** 寻找投影曲线的局部最小值区域
+  - 使用阈值过滤 (低于平均值的 80%)
+  - 连续低值区域合并为一个波谷
+  - 记录波谷的 start, end, center, depth
+- **边缘检测:** 检测首尾 15% 范围内的波谷作为边缘
+  - 使用波谷中心位置作为建议边距
+  - 通过 `hasUserMargins` 参数控制是否检测边缘
+- **手动触发:** 边距修改不再自动触发切割
+  - "应用并重新切割" 按钮: 使用当前边距重新生成网格
+  - "智能检测边缘" 按钮: 清空边距并重新检测边缘
+
+### TOML 序列化 (2025-11-29)
+- **编码方式:** 使用 `TomlDocument.fromMap()` 生成 TOML 内容
+- **解码方式:** 使用 `TomlDocument.parse().toMap()` 解析 TOML
+- **配置模型:** `AppConfig.toMap()` / `AppConfig.fromMap()` 双向转换

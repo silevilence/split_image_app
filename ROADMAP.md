@@ -28,6 +28,81 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 ## ✅ 已完成 (Completed)
 
+### Refactor: 🏗️ Grid Algorithm Architecture (策略模式重构)
+**完成日期:** 2025-11-29
+
+#### 📝 Description
+使用策略模式 (Strategy Pattern) 解耦网格生成算法与 UI 代码，为后续智能算法奠定架构基础。
+
+#### ✅ Checklist
+- [x] 定义 `GridGeneratorStrategy` 抽象基类/接口
+- [x] 定义标准输入参数: `GridGeneratorInput`
+- [x] 定义标准输出: `GridGeneratorResult`
+- [x] 创建 `GridAlgorithmType` 枚举 (fixedEvenSplit, projectionProfile, edgeDetection)
+- [x] 实现 `GridStrategyFactory` 工厂类
+- [x] 迁移现有均匀分割逻辑到 `FixedEvenSplitStrategy`
+- [x] 更新 `EditorProvider` 使用策略模式
+- [x] 在 `app_config.dart` 添加 `defaultAlgorithm` 配置项
+- [x] 在 `config.toml` 添加算法配置
+- [x] 在设置页面添加 "Default Algorithm" 下拉菜单
+
+#### 📁 产出文件
+```
+lib/
+├── models/
+│   ├── grid_algorithm_type.dart      # 算法类型枚举
+│   ├── grid_generator_input.dart     # 输入参数模型
+│   └── grid_generator_result.dart    # 输出结果模型
+├── strategies/
+│   ├── grid_generator_strategy.dart  # 抽象基类
+│   ├── grid_strategy_factory.dart    # 工厂类
+│   └── fixed_even_split_strategy.dart # 均匀分割实现
+├── services/
+│   └── config_service.dart           # 更新: 添加算法配置
+├── models/
+│   └── app_config.dart               # 更新: GridConfig 添加 defaultAlgorithm
+├── providers/
+│   └── editor_provider.dart          # 更新: 集成策略模式
+└── widgets/
+    └── settings_dialog.dart          # 更新: 添加算法选择 UI
+```
+
+---
+
+### Feature: 🧠 智能网格初始化算法 (Projection Profile)
+**完成日期:** 2025-11-29
+
+#### 📝 Description
+基于投影分析法 (Projection Profile) 自动识别贴纸缝隙，支持多种背景类型检测，并可自动设置边距。
+
+#### ✅ Checklist
+- [x] 实现 Vertical Projection (垂直投影) 计算
+- [x] 实现 Horizontal Projection (水平投影) 计算
+- [x] 波谷检测算法 (Valley Detection)
+- [x] 网格线 Snap 到波谷中心
+- [x] 背景类型自动检测 (透明/浅色/深色)
+- [x] 边缘波谷自动转换为建议边距
+- [x] 手动触发切割按钮 ("应用并重新切割")
+- [x] 智能检测边缘按钮
+- [x] 算法配置持久化 (TOML)
+- [x] 默认行列数从配置读取
+
+#### 📁 产出文件
+```
+lib/
+├── strategies/
+│   └── projection_profile_strategy.dart  # 投影分析算法实现
+├── models/
+│   ├── grid_generator_input.dart         # 更新: 添加 hasUserMargins
+│   └── grid_generator_result.dart        # 更新: 添加 SuggestedMargins
+├── providers/
+│   └── editor_provider.dart              # 更新: detectEdgesAndRegenerate()
+└── widgets/
+    └── margins_input.dart                # 更新: 添加手动触发按钮
+```
+
+---
+
 ### Feature: 快捷键与模式切换增强 (Shortcuts & Mode Switching)
 **完成日期:** 2025-11-29
 
@@ -117,201 +192,7 @@ lib/
 
 ## 📅 计划开发 (Planned)
 
-### Refactor: 🏗️ Grid Algorithm Architecture (策略模式重构)
-**优先级:** 🔴 高  
-**预计工时:** 2-3h  
-**依赖:** 无  
-**被依赖:** 智能网格初始化算法 (Smart Grid Algorithm)
-
-#### 📝 Description
-在实现具体算法之前，先搭建可扩展的算法架构。使用策略模式 (Strategy Pattern) 解耦算法逻辑与 UI 代码，使未来新增算法的工作量最小化。
-
-#### 🎯 Design Goals
-- **解耦:** 算法逻辑与 UI 完全分离
-- **可扩展:** 新增算法仅需 "1 Enum + 1 Switch Case + 1 Class File"
-- **可配置:** 用户可在设置中选择默认算法
-
-#### ✅ Checklist
-- [ ] 定义 `GridGeneratorStrategy` 抽象基类/接口
-- [ ] 定义标准输入参数: `GridGeneratorInput`
-  - [ ] `Rect effectiveRect` - 有效区域
-  - [ ] `int targetRows` - 目标行数
-  - [ ] `int targetCols` - 目标列数
-  - [ ] `Uint8List? pixelData` - 像素数据 (可选，供智能算法使用)
-  - [ ] `int imageWidth`, `int imageHeight` - 图片尺寸
-- [ ] 定义标准输出: `GridGeneratorResult`
-  - [ ] `List<double> horizontalLines` - 水平线相对位置
-  - [ ] `List<double> verticalLines` - 垂直线相对位置
-- [ ] 创建 `GridAlgorithmType` 枚举
-  - [ ] `fixedEvenSplit` - 均匀分割 (当前默认)
-  - [ ] `projectionProfile` - 投影分析法 (预留)
-  - [ ] `edgeDetection` - 边缘检测 (预留)
-- [ ] 实现 `GridStrategyFactory` 工厂类
-- [ ] 迁移现有均匀分割逻辑到 `FixedEvenSplitStrategy`
-- [ ] 更新 `EditorProvider` 使用策略模式
-- [ ] 在 `app_config.dart` 添加 `defaultAlgorithm` 配置项
-- [ ] 在 `config.toml` 添加 `[grid]` 或 `[algorithm]` 配置节
-- [ ] 在设置页面添加 "Default Algorithm" 下拉菜单
-
-#### 🔧 Technical Considerations
-
-**Strategy Pattern 结构:**
-```dart
-/// 算法类型枚举
-enum GridAlgorithmType {
-  fixedEvenSplit,      // 均匀分割
-  projectionProfile,   // 投影分析
-  edgeDetection,       // 边缘检测 (未来)
-}
-
-/// 算法输入参数
-class GridGeneratorInput {
-  final Rect effectiveRect;
-  final int targetRows;
-  final int targetCols;
-  final int imageWidth;
-  final int imageHeight;
-  final Uint8List? pixelData; // 仅智能算法需要
-}
-
-/// 算法输出结果
-class GridGeneratorResult {
-  final List<double> horizontalLines;
-  final List<double> verticalLines;
-  final String? message; // 可选的提示信息
-}
-
-/// 策略抽象基类
-abstract class GridGeneratorStrategy {
-  GridAlgorithmType get type;
-  String get displayName;
-  String get description;
-  
-  /// 是否需要像素数据 (智能算法需要，均匀分割不需要)
-  bool get requiresPixelData => false;
-  
-  /// 生成网格线 (可在 Isolate 中运行)
-  Future<GridGeneratorResult> generate(GridGeneratorInput input);
-}
-
-/// 工厂类
-class GridStrategyFactory {
-  static GridGeneratorStrategy create(GridAlgorithmType type) {
-    switch (type) {
-      case GridAlgorithmType.fixedEvenSplit:
-        return FixedEvenSplitStrategy();
-      case GridAlgorithmType.projectionProfile:
-        return ProjectionProfileStrategy(); // 后续实现
-      case GridAlgorithmType.edgeDetection:
-        throw UnimplementedError('Edge detection not yet implemented');
-    }
-  }
-  
-  static List<GridGeneratorStrategy> getAllStrategies() {
-    return GridAlgorithmType.values
-        .where((t) => t != GridAlgorithmType.edgeDetection) // 排除未实现的
-        .map((t) => create(t))
-        .toList();
-  }
-}
-```
-
-**config.toml 配置结构:**
-```toml
-[algorithm]
-default = "fixedEvenSplit"  # fixedEvenSplit | projectionProfile
-
-# 投影算法参数 (可选)
-[algorithm.projectionProfile]
-threshold = 0.3
-minValleyWidth = 5
-```
-
-**EditorProvider 集成:**
-```dart
-class EditorProvider {
-  GridAlgorithmType _algorithmType = GridAlgorithmType.fixedEvenSplit;
-  
-  Future<void> regenerateGrid() async {
-    final strategy = GridStrategyFactory.create(_algorithmType);
-    final input = GridGeneratorInput(...);
-    final result = await strategy.generate(input);
-    _horizontalLines = result.horizontalLines;
-    _verticalLines = result.verticalLines;
-    notifyListeners();
-  }
-}
-```
-
-#### 📁 产出文件
-```
-lib/
-├── models/
-│   ├── grid_algorithm_type.dart      # 算法类型枚举
-│   ├── grid_generator_input.dart     # 输入参数模型
-│   └── grid_generator_result.dart    # 输出结果模型
-├── strategies/
-│   ├── grid_generator_strategy.dart  # 抽象基类
-│   ├── grid_strategy_factory.dart    # 工厂类
-│   └── fixed_even_split_strategy.dart # 均匀分割实现
-├── services/
-│   └── config_service.dart           # 更新: 添加算法配置
-├── models/
-│   └── app_config.dart               # 更新: 添加 AlgorithmConfig
-└── widgets/
-    └── settings_dialog.dart          # 更新: 添加算法选择 UI
-```
-
----
-
-### Feature: 🧠 智能网格初始化算法 (Smart Grid Algorithm)
-**优先级:** 🔴 高  
-**预计工时:** 4-6h  
-**前置依赖:** Grid Algorithm Architecture (策略模式重构) ⬆️
-
-#### 📝 Description
-基于投影分析法 (Projection Profile) 自动识别贴纸缝隙，减少人工调整网格线的工作量。
-
-#### ✅ Checklist
-- [ ] 实现 Vertical Projection (垂直投影) 计算
-- [ ] 实现 Horizontal Projection (水平投影) 计算
-- [ ] 波谷检测算法 (Valley Detection)
-- [ ] 网格线 Snap 到波谷中心
-- [ ] 在 Isolate 中运行分析任务
-- [ ] "Smart Detect" 按钮触发分析
-- [ ] 分析进度指示器
-- [ ] 阈值参数可调 (可选)
-
-#### 🔧 Technical Considerations
-- **Implementation:** 必须在 `compute` (Isolate) 中运行，避免阻塞 UI
-- **Algorithm Steps:**
-  ```dart
-  // Step A: 计算投影
-  List<int> verticalProjection = [];  // 每列的灰度/Alpha值求和
-  List<int> horizontalProjection = []; // 每行的灰度/Alpha值求和
-  
-  // Step B: 寻找波谷 (低于平均值的区域)
-  List<int> valleys = findValleys(projection, threshold);
-  
-  // Step C: 将网格线对齐到波谷中心
-  List<double> gridLines = valleys.map((v) => v / imageSize).toList();
-  ```
-- **投影计算:** 
-  - 对于 Alpha 通道: 透明区域 Alpha=0，贴纸区域 Alpha=255
-  - 缝隙区域投影值低，贴纸区域投影值高
-- **波谷检测:** 使用滑动窗口寻找局部最小值
-- **边界处理:** 排除图片边缘的假波谷
-
-#### 📁 产出文件
-```
-lib/
-├── utils/
-│   └── smart_grid_detector.dart
-└── widgets/
-    └── smart_detect_button.dart (可选)
-```
-
----
+*暂无*
 
 ---
 
@@ -322,8 +203,8 @@ lib/
 | 设置系统与数据持久化 | 🔴 高 | 3-4h | - | ✅ 已完成 |
 | 图片边缘留白控制 | 🟡 中 | 2-3h | - | ✅ 已完成 |
 | 快捷键与模式切换增强 | 🟡 中 | 2-3h | - | ✅ 已完成 |
-| Grid Algorithm Architecture | 🔴 高 | 2-3h | - | 📅 计划中 |
-| 智能网格初始化算法 | 🔴 高 | 4-6h | Architecture | 📅 计划中 |
+| Grid Algorithm Architecture | 🔴 高 | 2-3h | - | ✅ 已完成 |
+| 智能网格初始化算法 | 🔴 高 | 4-6h | Architecture | ✅ 已完成 |
 
 ---
 

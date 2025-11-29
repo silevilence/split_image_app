@@ -54,7 +54,11 @@ class _MarginsInputState extends State<MarginsInput> {
   }
 
   /// 应用单个边距变化
-  void _applyMarginChange(EditorProvider provider, String direction, String value) {
+  void _applyMarginChange(
+    EditorProvider provider,
+    String direction,
+    String value,
+  ) {
     final doubleValue = _parseValue(value);
     switch (direction) {
       case 'top':
@@ -84,28 +88,39 @@ class _MarginsInputState extends State<MarginsInput> {
       children: [
         // 折叠标题
         GestureDetector(
-          onTap: hasImage ? () => setState(() => _isExpanded = !_isExpanded) : null,
+          onTap: hasImage
+              ? () => setState(() => _isExpanded = !_isExpanded)
+              : null,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 4),
             color: Colors.transparent,
             child: Row(
               children: [
                 Icon(
-                  _isExpanded ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+                  _isExpanded
+                      ? FluentIcons.chevron_down
+                      : FluentIcons.chevron_right,
                   size: 12,
-                  color: hasImage ? null : theme.resources.textFillColorDisabled,
+                  color: hasImage
+                      ? null
+                      : theme.resources.textFillColorDisabled,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '边距',
                   style: theme.typography.body?.copyWith(
-                    color: hasImage ? null : theme.resources.textFillColorDisabled,
+                    color: hasImage
+                        ? null
+                        : theme.resources.textFillColorDisabled,
                   ),
                 ),
                 const Spacer(),
                 if (!margins.isZero)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.accentColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -172,6 +187,37 @@ class _MarginsInputState extends State<MarginsInput> {
               ],
             ),
           ),
+        const SizedBox(height: 8),
+        // 应用并重新切割按钮
+        FilledButton(
+          onPressed: () async {
+            await provider.regenerateGrid();
+          },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(FluentIcons.grid_view_medium, size: 14),
+              SizedBox(width: 6),
+              Text('应用并重新切割'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 智能检测按钮
+        Button(
+          onPressed: () async {
+            await provider.detectEdgesAndRegenerate();
+            _syncFromProvider(provider);
+          },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(FluentIcons.auto_enhance_on, size: 14),
+              SizedBox(width: 6),
+              Text('智能检测边缘'),
+            ],
+          ),
+        ),
         const SizedBox(height: 8),
         // 重置按钮
         if (!provider.margins.isZero)
@@ -281,8 +327,8 @@ class _MarginsInputState extends State<MarginsInput> {
     final imageSize = provider.imageSize;
     final maxValue = imageSize != null
         ? (direction == 'left' || direction == 'right'
-            ? imageSize.width / 2
-            : imageSize.height / 2)
+              ? imageSize.width / 2
+              : imageSize.height / 2)
         : 9999.0;
 
     return SizedBox(
@@ -313,7 +359,11 @@ class _MarginsInputState extends State<MarginsInput> {
               onChanged: (value) {
                 if (value != null) {
                   controller.text = value.toStringAsFixed(0);
-                  _applyMarginChange(provider, direction, value.toStringAsFixed(0));
+                  _applyMarginChange(
+                    provider,
+                    direction,
+                    value.toStringAsFixed(0),
+                  );
                 }
               },
             ),

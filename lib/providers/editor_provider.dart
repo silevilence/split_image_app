@@ -1,16 +1,32 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/editor_history.dart';
+import '../models/grid_algorithm_type.dart';
 import '../models/grid_config.dart';
-import '../models/grid_line.dart';
+import '../models/grid_generator_input.dart';
+import '../models/grid_generator_result.dart';
 import '../models/margins.dart';
+import '../services/config_service.dart';
+import '../strategies/grid_strategy_factory.dart';
 
 /// 图片编辑器状态管理
 class EditorProvider extends ChangeNotifier {
+  /// 构造函数 - 从配置加载默认值
+  EditorProvider() {
+    final configService = ConfigService.instance;
+    _algorithmType = configService.defaultAlgorithm;
+    // 从配置加载默认行列数
+    _gridConfig = GridConfig(
+      rows: configService.config.grid.defaultRows,
+      cols: configService.config.grid.defaultCols,
+    );
+  }
+
   // ============ 图片相关 ============
 
   /// 源图片文件
@@ -20,6 +36,9 @@ class EditorProvider extends ChangeNotifier {
   /// 图片尺寸
   Size? _imageSize;
   Size? get imageSize => _imageSize;
+
+  /// 图片像素数据（RGBA 格式，供智能算法使用）
+  Uint8List? _pixelData;
 
   /// 图片宽高比
   double? get imageAspectRatio =>
@@ -38,6 +57,10 @@ class EditorProvider extends ChangeNotifier {
   /// 网格配置
   GridConfig _gridConfig = GridConfig.defaultConfig();
   GridConfig get gridConfig => _gridConfig;
+
+  /// 当前使用的网格生成算法（构造函数中从配置加载）
+  GridAlgorithmType _algorithmType = GridAlgorithmType.fixedEvenSplit;
+  GridAlgorithmType get algorithmType => _algorithmType;
 
   /// 水平网格线（相对位置 0.0-1.0）
   List<double> _horizontalLines = [];
@@ -244,10 +267,11 @@ class EditorProvider extends ChangeNotifier {
     }
   }
 
-  /// 根据行列数生成均匀分布的网格线
-  /// 网格线位置是相对于有效区域的比例 (0.0-1.0)
-  /// 然后映射到整个图片的相对位置
-  void _generateGridLines() {
+  /// 根据当前算法生成网格线
+  /// 网格线位置是相对于整个图片的比例 (0.0-1.0)
+  ///
+  /// [detectEdges] 是否检测边缘并自动设置 margin（仅首次应用算法时为 true）
+  Future<void> _generateGridLines({bool detectEdges = false}) async {
     if (_imageSize == null) {
       _horizontalLines = [];
       _verticalLines = [];
@@ -256,26 +280,150 @@ class EditorProvider extends ChangeNotifier {
 
     final rect = effectiveRect!;
 
-    // 生成水平线（行数-1条）
-    // 相对位置需要从有效区域映射到整个图片
-    _horizontalLines = List.generate(_gridConfig.rows - 1, (i) {
-      // 在有效区域内的相对位置
-      final relativeInEffective = (i + 1) / _gridConfig.rows;
-      // 在有效区域内的实际 Y 坐标
-      final actualY = rect.top + rect.height * relativeInEffective;
-      // 转换为整个图片的相对位置
-      return actualY / _imageSize!.height;
-    });
+    // 使用策略工厂创建对应算法
+    final strategy = GridStrategyFactory.tryCreate(_algorithmType);
 
-    // 生成垂直线（列数-1条）
-    _verticalLines = List.generate(_gridConfig.cols - 1, (i) {
-      // 在有效区域内的相对位置
-      final relativeInEffective = (i + 1) / _gridConfig.cols;
-      // 在有效区域内的实际 X 坐标
-      final actualX = rect.left + rect.width * relativeInEffective;
-      // 转换为整个图片的相对位置
-      return actualX / _imageSize!.width;
-    });
+    if (strategy == null) {
+      // 算法未实现，回退到均匀分割
+      _algorithmType = GridAlgorithmType.fixedEvenSplit;
+      final fallbackStrategy = GridStrategyFactory.create(
+        GridAlgorithmType.fixedEvenSplit,
+      );
+      final input = GridGeneratorInput(
+        effectiveRect: rect,
+        targetRows: _gridConfig.rows,
+        targetCols: _gridConfig.cols,
+        imageWidth: _imageSize!.width.toInt(),
+        imageHeight: _imageSize!.height.toInt(),
+      );
+      final result = await fallbackStrategy.generate(input);
+      _horizontalLines = result.horizontalLines;
+      _verticalLines = result.verticalLines;
+      return;
+    }
+
+    // 如果算法需要像素数据但当前没有，尝试加载
+    Uint8List? pixelData = _pixelData;
+    debugPrint('[EditorProvider] Algorithm: ${_algorithmType.name}');
+    debugPrint(
+      '[EditorProvider] requiresPixelData: ${strategy.requiresPixelData}',
+    );
+    debugPrint('[EditorProvider] existing pixelData: ${pixelData != null}');
+    if (strategy.requiresPixelData && pixelData == null && _imageFile != null) {
+      debugPrint('[EditorProvider] Loading pixel data...');
+      pixelData = await _loadPixelData();
+      debugPrint(
+        '[EditorProvider] Pixel data loaded: ${pixelData != null}, length: ${pixelData?.length}',
+      );
+    }
+
+    // 创建输入参数
+    // 只有 detectEdges=true 且 margin 为零时，才让算法检测边缘
+    final shouldDetectEdges = detectEdges && _margins.isZero;
+    final input = GridGeneratorInput(
+      effectiveRect: rect,
+      targetRows: _gridConfig.rows,
+      targetCols: _gridConfig.cols,
+      imageWidth: _imageSize!.width.toInt(),
+      imageHeight: _imageSize!.height.toInt(),
+      pixelData: pixelData,
+      hasUserMargins: !shouldDetectEdges,
+    );
+
+    // 生成网格线
+    final result = await strategy.generate(input);
+
+    if (result.success) {
+      // 如果允许检测边缘，且算法建议了边距，则自动应用
+      if (shouldDetectEdges &&
+          result.suggestedMargins != null &&
+          result.suggestedMargins!.hasMargins) {
+        final suggested = result.suggestedMargins!;
+        debugPrint('[EditorProvider] Applying suggested margins: $suggested');
+
+        _margins = ImageMargins(
+          top: suggested.top.toDouble(),
+          bottom: suggested.bottom.toDouble(),
+          left: suggested.left.toDouble(),
+          right: suggested.right.toDouble(),
+        );
+      }
+
+      _horizontalLines = result.horizontalLines;
+      _verticalLines = result.verticalLines;
+      if (result.message != null) {
+        debugPrint('[EditorProvider] ${result.message}');
+      }
+    } else {
+      // 生成失败，回退到均匀分割
+      debugPrint('[EditorProvider] Grid generation failed: ${result.message}');
+      debugPrint('[EditorProvider] Falling back to even split');
+
+      final fallbackStrategy = GridStrategyFactory.create(
+        GridAlgorithmType.fixedEvenSplit,
+      );
+      final fallbackInput = GridGeneratorInput(
+        effectiveRect: rect,
+        targetRows: _gridConfig.rows,
+        targetCols: _gridConfig.cols,
+        imageWidth: _imageSize!.width.toInt(),
+        imageHeight: _imageSize!.height.toInt(),
+      );
+      final fallbackResult = await fallbackStrategy.generate(fallbackInput);
+      _horizontalLines = fallbackResult.horizontalLines;
+      _verticalLines = fallbackResult.verticalLines;
+    }
+  }
+
+  /// 加载图片像素数据（RGBA 格式）
+  Future<Uint8List?> _loadPixelData() async {
+    if (_imageFile == null) return null;
+
+    try {
+      final bytes = await _imageFile!.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // 将图片转换为 RGBA 字节数组
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (byteData != null) {
+        _pixelData = byteData.buffer.asUint8List();
+        return _pixelData;
+      }
+    } catch (e) {
+      debugPrint('[EditorProvider] Failed to load pixel data: $e');
+    }
+
+    return null;
+  }
+
+  /// 设置网格生成算法
+  Future<void> setAlgorithmType(GridAlgorithmType type) async {
+    if (_algorithmType == type) return;
+    _algorithmType = type;
+    // 保存算法选择到配置
+    await ConfigService.instance.setDefaultAlgorithm(type);
+    // 切换算法时不自动检测边缘，需要手动触发
+    await _generateGridLines();
+    notifyListeners();
+  }
+
+  /// 重新生成网格（供外部调用，不检测边缘）
+  Future<void> regenerateGrid() async {
+    await _generateGridLines();
+    notifyListeners();
+  }
+
+  /// 重新检测边缘并生成网格（手动触发）
+  /// 会清空当前 margin，重新检测边缘
+  Future<void> detectEdgesAndRegenerate() async {
+    // 先清空 margin，这样算法会重新检测边缘
+    _margins = ImageMargins.zero;
+    await _generateGridLines(detectEdges: true);
+    notifyListeners();
   }
 
   /// 加载图片
@@ -306,11 +454,14 @@ class EditorProvider extends ChangeNotifier {
       _imageFile = file;
       _imageSize = Size(image.width.toDouble(), image.height.toDouble());
 
-      // 智能网格适配
+      // 智能网格适配（根据图片方向自动交换行列）
       _applySmartGridFit();
 
-      // 生成网格线
-      _generateGridLines();
+      // 重置 margin
+      _margins = ImageMargins.zero;
+
+      // 加载图片后自动检测边缘并生成网格
+      await _generateGridLines(detectEdges: true);
 
       _isLoading = false;
       notifyListeners();
@@ -345,37 +496,37 @@ class EditorProvider extends ChangeNotifier {
   }
 
   /// 设置行数
-  void setRows(int rows) {
+  Future<void> setRows(int rows) async {
     if (rows > 0 && rows <= 50) {
       _gridConfig = _gridConfig.copyWith(rows: rows);
       _wasSwapped = false;
-      _generateGridLines();
+      await _generateGridLines();
       notifyListeners();
     }
   }
 
   /// 设置列数
-  void setCols(int cols) {
+  Future<void> setCols(int cols) async {
     if (cols > 0 && cols <= 50) {
       _gridConfig = _gridConfig.copyWith(cols: cols);
       _wasSwapped = false;
-      _generateGridLines();
+      await _generateGridLines();
       notifyListeners();
     }
   }
 
   /// 设置网格配置
-  void setGridConfig(GridConfig config) {
+  Future<void> setGridConfig(GridConfig config) async {
     _gridConfig = config;
     _wasSwapped = false;
     if (_imageSize != null) {
       _applySmartGridFit();
-      _generateGridLines();
+      await _generateGridLines();
     }
     notifyListeners();
   }
 
-  /// 设置边距
+  /// 设置边距（不自动重新生成网格，需手动触发）
   void setMargins(ImageMargins margins) {
     if (_imageSize == null) return;
 
@@ -391,7 +542,6 @@ class EditorProvider extends ChangeNotifier {
 
     _saveToHistory();
     _margins = margins;
-    _generateGridLines();
     notifyListeners();
   }
 
@@ -412,13 +562,12 @@ class EditorProvider extends ChangeNotifier {
     setMargins(_margins.copyWith(right: value.clamp(0, double.infinity)));
   }
 
-  /// 重置边距为零
+  /// 重置边距为零（不自动重新生成网格，需手动触发）
   void resetMargins() {
     if (_margins == ImageMargins.zero) return;
 
     _saveToHistory();
     _margins = ImageMargins.zero;
-    _generateGridLines();
     notifyListeners();
   }
 
@@ -445,6 +594,7 @@ class EditorProvider extends ChangeNotifier {
   void reset() {
     _imageFile = null;
     _imageSize = null;
+    _pixelData = null;
     _isLoading = false;
     _errorMessage = null;
     _gridConfig = GridConfig.defaultConfig();

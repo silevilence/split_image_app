@@ -1,7 +1,9 @@
 /// 应用配置模型
-/// 
+///
 /// 用于存储和管理应用的持久化配置，包括导出设置、快捷键绑定、网格默认值等。
 library;
+
+import 'grid_algorithm_type.dart';
 
 /// 导出相关配置
 class ExportConfig {
@@ -102,9 +104,13 @@ class GridConfig {
   /// 默认列数
   int defaultCols;
 
+  /// 默认网格生成算法
+  GridAlgorithmType defaultAlgorithm;
+
   GridConfig({
     this.defaultRows = 3,
     this.defaultCols = 3,
+    this.defaultAlgorithm = GridAlgorithmType.fixedEvenSplit,
   });
 
   /// 从 Map 创建配置
@@ -112,6 +118,9 @@ class GridConfig {
     return GridConfig(
       defaultRows: (map['default_rows'] as num?)?.toInt() ?? 3,
       defaultCols: (map['default_cols'] as num?)?.toInt() ?? 3,
+      defaultAlgorithm: GridAlgorithmTypeExtension.fromConfigKey(
+        map['default_algorithm'] as String? ?? 'fixedEvenSplit',
+      ),
     );
   }
 
@@ -120,6 +129,7 @@ class GridConfig {
     return {
       'default_rows': defaultRows,
       'default_cols': defaultCols,
+      'default_algorithm': defaultAlgorithm.configKey,
     };
   }
 }
@@ -139,9 +149,9 @@ class AppConfig {
     ExportConfig? export,
     ShortcutsConfig? shortcuts,
     GridConfig? grid,
-  })  : export = export ?? ExportConfig(),
-        shortcuts = shortcuts ?? ShortcutsConfig(),
-        grid = grid ?? GridConfig();
+  }) : export = export ?? ExportConfig(),
+       shortcuts = shortcuts ?? ShortcutsConfig(),
+       grid = grid ?? GridConfig();
 
   /// 创建默认配置
   factory AppConfig.defaults() => AppConfig();
@@ -150,10 +160,14 @@ class AppConfig {
   factory AppConfig.fromMap(Map<String, dynamic> map) {
     return AppConfig(
       export: map['export'] != null
-          ? ExportConfig.fromMap(Map<String, dynamic>.from(map['export'] as Map))
+          ? ExportConfig.fromMap(
+              Map<String, dynamic>.from(map['export'] as Map),
+            )
           : null,
       shortcuts: map['shortcuts'] != null
-          ? ShortcutsConfig.fromMap(Map<String, dynamic>.from(map['shortcuts'] as Map))
+          ? ShortcutsConfig.fromMap(
+              Map<String, dynamic>.from(map['shortcuts'] as Map),
+            )
           : null,
       grid: map['grid'] != null
           ? GridConfig.fromMap(Map<String, dynamic>.from(map['grid'] as Map))

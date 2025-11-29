@@ -24,12 +24,8 @@ class PreviewPanel extends StatefulWidget {
 }
 
 class _PreviewPanelState extends State<PreviewPanel> {
-  final TextEditingController _rowsController = TextEditingController(
-    text: '4',
-  );
-  final TextEditingController _colsController = TextEditingController(
-    text: '6',
-  );
+  late final TextEditingController _rowsController;
+  late final TextEditingController _colsController;
   bool _isDragging = false;
   bool _isSettingsExpanded = true; // 设置区是否展开
   bool _isPickingFile = false; // 防止重复打开文件选择器
@@ -37,7 +33,16 @@ class _PreviewPanelState extends State<PreviewPanel> {
   @override
   void initState() {
     super.initState();
-    // 监听 Provider 变化更新输入框
+    // 从配置读取默认行列数作为输入框初始值
+    final config = ConfigService.instance.config.grid;
+    _rowsController = TextEditingController(
+      text: config.defaultRows.toString(),
+    );
+    _colsController = TextEditingController(
+      text: config.defaultCols.toString(),
+    );
+
+    // 监听 Provider 变化更新输入框（用于智能交换后同步）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<EditorProvider>();
       _rowsController.text = provider.gridConfig.rows.toString();
