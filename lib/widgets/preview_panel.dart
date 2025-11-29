@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../providers/editor_provider.dart';
 import '../providers/preview_provider.dart';
 import '../services/config_service.dart';
+import '../shortcuts/shortcut_wrapper.dart';
 import '../utils/image_processor.dart';
 import 'export_dialog.dart';
 import 'margins_input.dart';
@@ -23,10 +24,15 @@ class PreviewPanel extends StatefulWidget {
 }
 
 class _PreviewPanelState extends State<PreviewPanel> {
-  final TextEditingController _rowsController = TextEditingController(text: '4');
-  final TextEditingController _colsController = TextEditingController(text: '6');
+  final TextEditingController _rowsController = TextEditingController(
+    text: '4',
+  );
+  final TextEditingController _colsController = TextEditingController(
+    text: '6',
+  );
   bool _isDragging = false;
   bool _isSettingsExpanded = true; // 设置区是否展开
+  bool _isPickingFile = false; // 防止重复打开文件选择器
 
   @override
   void initState() {
@@ -48,17 +54,28 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   /// 选择图片文件
   Future<void> _pickImage() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-      dialogTitle: '选择图片',
-    );
+    // 防止重复打开文件选择器
+    if (_isPickingFile) return;
 
-    if (result != null && result.files.single.path != null) {
+    setState(() => _isPickingFile = true);
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        dialogTitle: '选择图片',
+      );
+
+      if (result != null && result.files.single.path != null) {
+        if (mounted) {
+          final provider = context.read<EditorProvider>();
+          await provider.loadImage(result.files.single.path!);
+          _updateTextFields();
+        }
+      }
+    } finally {
       if (mounted) {
-        final provider = context.read<EditorProvider>();
-        await provider.loadImage(result.files.single.path!);
-        _updateTextFields();
+        setState(() => _isPickingFile = false);
       }
     }
   }
@@ -188,28 +205,31 @@ class _PreviewPanelState extends State<PreviewPanel> {
           bottom: BorderSide(color: theme.resources.dividerStrokeColorDefault),
         ),
       ),
-      child: Text(
-        '控制面板',
-        style: theme.typography.subtitle,
-      ),
+      child: Text('控制面板', style: theme.typography.subtitle),
     );
   }
 
   /// 构建可折叠的设置区
-  Widget _buildCollapsibleSettings(FluentThemeData theme, EditorProvider provider) {
+  Widget _buildCollapsibleSettings(
+    FluentThemeData theme,
+    EditorProvider provider,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 折叠标题栏
         GestureDetector(
-          onTap: () => setState(() => _isSettingsExpanded = !_isSettingsExpanded),
+          onTap: () =>
+              setState(() => _isSettingsExpanded = !_isSettingsExpanded),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.transparent,
             child: Row(
               children: [
                 Icon(
-                  _isSettingsExpanded ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+                  _isSettingsExpanded
+                      ? FluentIcons.chevron_down
+                      : FluentIcons.chevron_right,
                   size: 12,
                 ),
                 const SizedBox(width: 8),
@@ -251,7 +271,10 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
 
   /// 紧凑版网格设置
-  Widget _buildCompactGridSettings(FluentThemeData theme, EditorProvider provider) {
+  Widget _buildCompactGridSettings(
+    FluentThemeData theme,
+    EditorProvider provider,
+  ) {
     return Row(
       children: [
         Text('网格:', style: theme.typography.body),
@@ -304,12 +327,15 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
 
   /// 紧凑版编辑操作
-  Widget _buildCompactEditActions(FluentThemeData theme, EditorProvider provider) {
+  Widget _buildCompactEditActions(
+    FluentThemeData theme,
+    EditorProvider provider,
+  ) {
     return Row(
       children: [
         // 撤销
         Tooltip(
-          message: '撤销 (Ctrl+Z)',
+          message: buildTooltipWithShortcut('撤销', 'undo'),
           child: IconButton(
             icon: const Icon(FluentIcons.undo, size: 16),
             onPressed: provider.canUndo ? provider.undo : null,
@@ -317,7 +343,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
         ),
         // 重做
         Tooltip(
-          message: '重做 (Ctrl+Y)',
+          message: buildTooltipWithShortcut('重做', 'redo'),
           child: IconButton(
             icon: const Icon(FluentIcons.redo, size: 16),
             onPressed: provider.canRedo ? provider.redo : null,
@@ -339,6 +365,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   /// 构建文件操作区
   Widget _buildFileSection(FluentThemeData theme, EditorProvider provider) {
+    final isButtonDisabled = provider.isLoading || _isPickingFile;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -346,13 +373,17 @@ class _PreviewPanelState extends State<PreviewPanel> {
           children: [
             Expanded(
               child: FilledButton(
-                onPressed: provider.isLoading ? null : _pickImage,
+                onPressed: isButtonDisabled ? null : _pickImage,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(FluentIcons.open_file, size: 14),
                     const SizedBox(width: 6),
-                    Text(provider.isLoading ? '加载中...' : '选择图片'),
+                    Text(
+                      provider.isLoading
+                          ? '加载中...'
+                          : (_isPickingFile ? '选择中...' : '选择图片'),
+                    ),
                   ],
                 ),
               ),
@@ -384,7 +415,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   /// 构建网格设置区
   Widget _buildGridSettingsSection(
-      FluentThemeData theme, EditorProvider provider) {
+    FluentThemeData theme,
+    EditorProvider provider,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -462,7 +495,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   /// 构建编辑操作区（撤销/重做）
   Widget _buildEditActionsSection(
-      FluentThemeData theme, EditorProvider provider) {
+    FluentThemeData theme,
+    EditorProvider provider,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -559,7 +594,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final previewProvider = context.read<PreviewProvider>();
 
     // 检查是否有选中的切片
-    final selectedSlices = previewProvider.slices.where((s) => s.isSelected).toList();
+    final selectedSlices = previewProvider.slices
+        .where((s) => s.isSelected)
+        .toList();
     if (selectedSlices.isEmpty) {
       await displayInfoBar(
         context,
@@ -574,7 +611,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
 
     // 获取源文件名
-    final sourceFileName = editorProvider.imageFile?.path.split('\\').last ??
+    final sourceFileName =
+        editorProvider.imageFile?.path.split('\\').last ??
         editorProvider.imageFile?.path.split('/').last;
 
     // 显示导出设置对话框
@@ -590,13 +628,17 @@ class _PreviewPanelState extends State<PreviewPanel> {
     final imageBytes = await editorProvider.imageFile!.readAsBytes();
 
     // 构建导出任务
-    final exportSlices = selectedSlices.map((slice) => ExportSlice(
-      x: slice.region.left.toInt(),
-      y: slice.region.top.toInt(),
-      width: slice.region.width.toInt(),
-      height: slice.region.height.toInt(),
-      suffix: slice.customSuffix,
-    )).toList();
+    final exportSlices = selectedSlices
+        .map(
+          (slice) => ExportSlice(
+            x: slice.region.left.toInt(),
+            y: slice.region.top.toInt(),
+            width: slice.region.width.toInt(),
+            height: slice.region.height.toInt(),
+            suffix: slice.customSuffix,
+          ),
+        )
+        .toList();
 
     final task = ExportTask(
       imageBytes: imageBytes,
@@ -671,7 +713,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
         const SizedBox(height: 8),
         // 导出按钮
         Button(
-          onPressed: previewProvider.hasPreview && previewProvider.selectedCount > 0
+          onPressed:
+              previewProvider.hasPreview && previewProvider.selectedCount > 0
               ? _exportSlices
               : null,
           child: Row(

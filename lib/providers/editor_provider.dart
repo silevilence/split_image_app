@@ -77,10 +77,10 @@ class EditorProvider extends ChangeNotifier {
   /// 选中的线索引和类型
   int? _selectedLineIndex;
   bool? _selectedLineIsHorizontal; // true: 水平线, false: 垂直线, null: 无选中
-  
+
   int? get selectedLineIndex => _selectedLineIndex;
   bool? get selectedLineIsHorizontal => _selectedLineIsHorizontal;
-  
+
   bool get hasSelectedLine => _selectedLineIndex != null;
 
   // ============ 撤销/重做系统 ============
@@ -94,11 +94,12 @@ class EditorProvider extends ChangeNotifier {
   /// 是否可以重做
   bool get canRedo => _history.canRedo;
 
-  /// 获取当前网格线状态快照
-  GridLinesSnapshot _getCurrentSnapshot() {
-    return GridLinesSnapshot.from(
+  /// 获取当前编辑器状态快照
+  EditorSnapshot _getCurrentSnapshot() {
+    return EditorSnapshot.from(
       horizontalLines: _horizontalLines,
       verticalLines: _verticalLines,
+      margins: _margins,
     );
   }
 
@@ -108,9 +109,10 @@ class EditorProvider extends ChangeNotifier {
   }
 
   /// 从快照恢复状态
-  void _restoreFromSnapshot(GridLinesSnapshot snapshot) {
+  void _restoreFromSnapshot(EditorSnapshot snapshot) {
     _horizontalLines = List<double>.from(snapshot.horizontalLines);
     _verticalLines = List<double>.from(snapshot.verticalLines);
+    _margins = snapshot.margins;
     clearSelection();
   }
 
@@ -135,7 +137,7 @@ class EditorProvider extends ChangeNotifier {
   /// 开始编辑操作（拖拽/微调前调用，保存当前状态）
   /// 返回 true 表示成功开始编辑
   bool _isEditing = false;
-  
+
   void beginEdit() {
     if (!_isEditing) {
       _saveToHistory();
@@ -223,13 +225,19 @@ class EditorProvider extends ChangeNotifier {
 
     if (_selectedLineIsHorizontal!) {
       if (_selectedLineIndex! < _horizontalLines.length) {
-        final newPos = (_horizontalLines[_selectedLineIndex!] + delta).clamp(0.0, 1.0);
+        final newPos = (_horizontalLines[_selectedLineIndex!] + delta).clamp(
+          0.0,
+          1.0,
+        );
         _horizontalLines[_selectedLineIndex!] = newPos;
         notifyListeners();
       }
     } else {
       if (_selectedLineIndex! < _verticalLines.length) {
-        final newPos = (_verticalLines[_selectedLineIndex!] + delta).clamp(0.0, 1.0);
+        final newPos = (_verticalLines[_selectedLineIndex!] + delta).clamp(
+          0.0,
+          1.0,
+        );
         _verticalLines[_selectedLineIndex!] = newPos;
         notifyListeners();
       }
@@ -247,33 +255,27 @@ class EditorProvider extends ChangeNotifier {
     }
 
     final rect = effectiveRect!;
-    
+
     // 生成水平线（行数-1条）
     // 相对位置需要从有效区域映射到整个图片
-    _horizontalLines = List.generate(
-      _gridConfig.rows - 1,
-      (i) {
-        // 在有效区域内的相对位置
-        final relativeInEffective = (i + 1) / _gridConfig.rows;
-        // 在有效区域内的实际 Y 坐标
-        final actualY = rect.top + rect.height * relativeInEffective;
-        // 转换为整个图片的相对位置
-        return actualY / _imageSize!.height;
-      },
-    );
+    _horizontalLines = List.generate(_gridConfig.rows - 1, (i) {
+      // 在有效区域内的相对位置
+      final relativeInEffective = (i + 1) / _gridConfig.rows;
+      // 在有效区域内的实际 Y 坐标
+      final actualY = rect.top + rect.height * relativeInEffective;
+      // 转换为整个图片的相对位置
+      return actualY / _imageSize!.height;
+    });
 
     // 生成垂直线（列数-1条）
-    _verticalLines = List.generate(
-      _gridConfig.cols - 1,
-      (i) {
-        // 在有效区域内的相对位置
-        final relativeInEffective = (i + 1) / _gridConfig.cols;
-        // 在有效区域内的实际 X 坐标
-        final actualX = rect.left + rect.width * relativeInEffective;
-        // 转换为整个图片的相对位置
-        return actualX / _imageSize!.width;
-      },
-    );
+    _verticalLines = List.generate(_gridConfig.cols - 1, (i) {
+      // 在有效区域内的相对位置
+      final relativeInEffective = (i + 1) / _gridConfig.cols;
+      // 在有效区域内的实际 X 坐标
+      final actualX = rect.left + rect.width * relativeInEffective;
+      // 转换为整个图片的相对位置
+      return actualX / _imageSize!.width;
+    });
   }
 
   /// 加载图片
@@ -333,7 +335,9 @@ class EditorProvider extends ChangeNotifier {
     if (imageIsPortrait && gridIsLandscape) {
       _gridConfig = _gridConfig.swap();
       _wasSwapped = true;
-    } else if (!imageIsPortrait && !gridIsLandscape && _gridConfig.rows > _gridConfig.cols) {
+    } else if (!imageIsPortrait &&
+        !gridIsLandscape &&
+        _gridConfig.rows > _gridConfig.cols) {
       // 横向图片但网格是竖向的
       _gridConfig = _gridConfig.swap();
       _wasSwapped = true;
@@ -374,14 +378,18 @@ class EditorProvider extends ChangeNotifier {
   /// 设置边距
   void setMargins(ImageMargins margins) {
     if (_imageSize == null) return;
-    
+
     // 验证边距有效性
     final error = margins.validate(_imageSize!);
     if (error != null) {
       // 无效边距，不应用
       return;
     }
-    
+
+    // 如果边距没有变化，不保存历史
+    if (_margins == margins) return;
+
+    _saveToHistory();
     _margins = margins;
     _generateGridLines();
     notifyListeners();
@@ -406,6 +414,9 @@ class EditorProvider extends ChangeNotifier {
 
   /// 重置边距为零
   void resetMargins() {
+    if (_margins == ImageMargins.zero) return;
+
+    _saveToHistory();
     _margins = ImageMargins.zero;
     _generateGridLines();
     notifyListeners();

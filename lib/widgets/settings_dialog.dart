@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../services/config_service.dart';
+import '../shortcuts/shortcut_manager.dart';
 
 /// 设置对话框
 class SettingsDialog extends StatefulWidget {
@@ -21,12 +22,12 @@ class SettingsDialog extends StatefulWidget {
 
 class _SettingsDialogState extends State<SettingsDialog> {
   final ConfigService _configService = ConfigService.instance;
-  
+
   late TextEditingController _rowsController;
   late TextEditingController _colsController;
   late TextEditingController _prefixController;
   late String _selectedFormat;
-  
+
   // 快捷键编辑状态
   late String _toggleModeShortcut;
   late String _deleteLineShortcut;
@@ -47,7 +48,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
       text: config.export.defaultPrefix,
     );
     _selectedFormat = config.export.defaultFormat;
-    
+
     // 初始化快捷键
     _toggleModeShortcut = config.shortcuts.toggleMode;
     _deleteLineShortcut = config.shortcuts.deleteLine;
@@ -66,18 +67,18 @@ class _SettingsDialogState extends State<SettingsDialog> {
   Future<void> _saveSettings() async {
     final rows = int.tryParse(_rowsController.text) ?? 3;
     final cols = int.tryParse(_colsController.text) ?? 3;
-    
+
     await _configService.setDefaultRows(rows.clamp(1, 20));
     await _configService.setDefaultCols(cols.clamp(1, 20));
     await _configService.setDefaultExportPrefix(_prefixController.text.trim());
     await _configService.setDefaultExportFormat(_selectedFormat);
-    
+
     // 保存快捷键
     await _configService.setToggleModeShortcut(_toggleModeShortcut);
     await _configService.setDeleteLineShortcut(_deleteLineShortcut);
     await _configService.setUndoShortcut(_undoShortcut);
     await _configService.setRedoShortcut(_redoShortcut);
-    
+
     if (mounted) {
       Navigator.of(context).pop();
       displayInfoBar(
@@ -93,7 +94,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
   Future<void> _resetToDefaults() async {
     await _configService.resetToDefaults();
-    
+
     // 更新 UI
     final config = _configService.config;
     setState(() {
@@ -106,7 +107,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
       _undoShortcut = config.shortcuts.undo;
       _redoShortcut = config.shortcuts.redo;
     });
-    
+
     if (mounted) {
       displayInfoBar(
         context,
@@ -140,16 +141,16 @@ class _SettingsDialogState extends State<SettingsDialog> {
             _buildSectionHeader(theme, '网格默认值', FluentIcons.grid_view_medium),
             const SizedBox(height: 12),
             _buildGridSettings(theme),
-            
+
             const SizedBox(height: 24),
-            
+
             // 导出设置
             _buildSectionHeader(theme, '导出设置', FluentIcons.save),
             const SizedBox(height: 12),
             _buildExportSettings(theme),
-            
+
             const SizedBox(height: 24),
-            
+
             // 快捷键
             _buildSectionHeader(theme, '快捷键', FluentIcons.keyboard_classic),
             const SizedBox(height: 8),
@@ -161,40 +162,35 @@ class _SettingsDialogState extends State<SettingsDialog> {
             ),
             const SizedBox(height: 8),
             _buildShortcutsSection(theme),
-            
+
             const SizedBox(height: 24),
-            
+
             // 配置文件信息
             _buildConfigFileInfo(theme),
           ],
         ),
       ),
       actions: [
-        Button(
-          onPressed: _resetToDefaults,
-          child: const Text('恢复默认'),
-        ),
+        Button(onPressed: _resetToDefaults, child: const Text('恢复默认')),
         Button(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        FilledButton(
-          onPressed: _saveSettings,
-          child: const Text('保存'),
-        ),
+        FilledButton(onPressed: _saveSettings, child: const Text('保存')),
       ],
     );
   }
 
-  Widget _buildSectionHeader(FluentThemeData theme, String title, IconData icon) {
+  Widget _buildSectionHeader(
+    FluentThemeData theme,
+    String title,
+    IconData icon,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 16, color: theme.accentColor),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: theme.typography.bodyStrong,
-        ),
+        Text(title, style: theme.typography.bodyStrong),
       ],
     );
   }
@@ -309,14 +305,20 @@ class _SettingsDialogState extends State<SettingsDialog> {
   }
 
   Widget _buildShortcutsSection(FluentThemeData theme) {
+    // 冲突检测函数
+    List<String> checkConflicts(String shortcut, String currentAction) {
+      return AppShortcutManager.instance.checkConflicts(
+        shortcut,
+        currentAction,
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.resources.cardBackgroundFillColorDefault,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: theme.resources.dividerStrokeColorDefault,
-        ),
+        border: Border.all(color: theme.resources.dividerStrokeColorDefault),
       ),
       child: Column(
         children: [
@@ -324,24 +326,40 @@ class _SettingsDialogState extends State<SettingsDialog> {
             action: '切换模式',
             shortcut: _toggleModeShortcut,
             onChanged: (value) => setState(() => _toggleModeShortcut = value),
+            checkConflicts: checkConflicts,
           ),
-          const Divider(style: DividerThemeData(horizontalMargin: EdgeInsets.symmetric(vertical: 8))),
+          const Divider(
+            style: DividerThemeData(
+              horizontalMargin: EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
           _ShortcutEditRow(
             action: '删除线条',
             shortcut: _deleteLineShortcut,
             onChanged: (value) => setState(() => _deleteLineShortcut = value),
+            checkConflicts: checkConflicts,
           ),
-          const Divider(style: DividerThemeData(horizontalMargin: EdgeInsets.symmetric(vertical: 8))),
+          const Divider(
+            style: DividerThemeData(
+              horizontalMargin: EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
           _ShortcutEditRow(
             action: '撤销',
             shortcut: _undoShortcut,
             onChanged: (value) => setState(() => _undoShortcut = value),
+            checkConflicts: checkConflicts,
           ),
-          const Divider(style: DividerThemeData(horizontalMargin: EdgeInsets.symmetric(vertical: 8))),
+          const Divider(
+            style: DividerThemeData(
+              horizontalMargin: EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
           _ShortcutEditRow(
             action: '重做',
             shortcut: _redoShortcut,
             onChanged: (value) => setState(() => _redoShortcut = value),
+            checkConflicts: checkConflicts,
           ),
         ],
       ),
@@ -398,10 +416,15 @@ class _ShortcutEditRow extends StatefulWidget {
   final String shortcut;
   final ValueChanged<String> onChanged;
 
+  /// 用于检测冲突的回调，返回冲突的操作名称列表
+  final List<String> Function(String shortcut, String currentAction)?
+  checkConflicts;
+
   const _ShortcutEditRow({
     required this.action,
     required this.shortcut,
     required this.onChanged,
+    this.checkConflicts,
   });
 
   @override
@@ -410,6 +433,7 @@ class _ShortcutEditRow extends StatefulWidget {
 
 class _ShortcutEditRowState extends State<_ShortcutEditRow> {
   bool _isEditing = false;
+  String? _conflictMessage;
   final FocusNode _focusNode = FocusNode();
 
   @override
@@ -442,7 +466,7 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
 
   KeyEventResult _handleKeyEvent(KeyEvent event) {
     if (!_isEditing) return KeyEventResult.ignored;
-    
+
     // 编辑模式下，所有按键事件都要处理，防止冒泡
     if (event is! KeyDownEvent) return KeyEventResult.handled;
 
@@ -454,7 +478,7 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
 
     // 构建快捷键字符串
     final parts = <String>[];
-    
+
     if (HardwareKeyboard.instance.isControlPressed) {
       parts.add('Ctrl');
     }
@@ -464,18 +488,43 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
     if (HardwareKeyboard.instance.isAltPressed) {
       parts.add('Alt');
     }
-    
+
     // 获取按键名称
     final keyLabel = _getKeyLabel(event.logicalKey);
     if (keyLabel != null && !_isModifierKey(event.logicalKey)) {
       parts.add(keyLabel);
-      
+
       // 完成编辑
       final shortcut = parts.join('+');
+
+      // 检测冲突
+      if (widget.checkConflicts != null) {
+        final conflicts = widget.checkConflicts!(shortcut, widget.action);
+        if (conflicts.isNotEmpty) {
+          setState(() {
+            _conflictMessage = '与 "${conflicts.join(', ')}" 冲突';
+          });
+          // 显示冲突提示，但仍然允许设置
+          if (mounted) {
+            displayInfoBar(
+              context,
+              builder: (ctx, close) => InfoBar(
+                title: const Text('快捷键冲突'),
+                content: Text('此快捷键已被 "${conflicts.join(', ')}" 使用'),
+                severity: InfoBarSeverity.warning,
+                onClose: close,
+              ),
+            );
+          }
+        } else {
+          _conflictMessage = null;
+        }
+      }
+
       widget.onChanged(shortcut);
       setState(() => _isEditing = false);
     }
-    
+
     return KeyEventResult.handled;
   }
 
@@ -537,11 +586,30 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    final hasConflict = _conflictMessage != null;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(widget.action, style: theme.typography.body),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.action, style: theme.typography.body),
+              if (hasConflict)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    _conflictMessage!,
+                    style: theme.typography.caption?.copyWith(
+                      color: Colors.orange,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         Focus(
           focusNode: _focusNode,
           onKeyEvent: (node, event) => _handleKeyEvent(event),
@@ -552,13 +620,15 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
               constraints: const BoxConstraints(minWidth: 80),
               decoration: BoxDecoration(
                 color: _isEditing
-                    ? theme.accentColor.withOpacity(0.1)
-                    : theme.resources.subtleFillColorSecondary,
+                    ? theme.accentColor.withValues(alpha: 0.1)
+                    : (hasConflict
+                          ? Colors.orange.withValues(alpha: 0.1)
+                          : theme.resources.subtleFillColorSecondary),
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(
                   color: _isEditing
                       ? theme.accentColor
-                      : Colors.transparent,
+                      : (hasConflict ? Colors.orange : Colors.transparent),
                   width: _isEditing ? 2 : 1,
                 ),
               ),
@@ -570,7 +640,9 @@ class _ShortcutEditRowState extends State<_ShortcutEditRow> {
                   fontWeight: FontWeight.w600,
                   color: _isEditing
                       ? theme.accentColor
-                      : theme.resources.textFillColorPrimary,
+                      : (hasConflict
+                            ? Colors.orange
+                            : theme.resources.textFillColorPrimary),
                 ),
               ),
             ),

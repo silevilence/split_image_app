@@ -1,29 +1,36 @@
 /// 编辑器历史记录系统
 /// 用于支持撤销/重做功能
 
-/// 网格线状态快照
-class GridLinesSnapshot {
+import 'margins.dart';
+
+/// 编辑器状态快照（包含网格线和边距）
+class EditorSnapshot {
   final List<double> horizontalLines;
   final List<double> verticalLines;
+  final ImageMargins margins;
 
-  const GridLinesSnapshot({
+  const EditorSnapshot({
     required this.horizontalLines,
     required this.verticalLines,
+    required this.margins,
   });
 
   /// 创建当前状态的深拷贝
-  GridLinesSnapshot.from({
+  EditorSnapshot.from({
     required List<double> horizontalLines,
     required List<double> verticalLines,
-  })  : horizontalLines = List<double>.from(horizontalLines),
-        verticalLines = List<double>.from(verticalLines);
+    required ImageMargins margins,
+  }) : horizontalLines = List<double>.from(horizontalLines),
+       verticalLines = List<double>.from(verticalLines),
+       margins = margins;
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! GridLinesSnapshot) return false;
+    if (other is! EditorSnapshot) return false;
     if (horizontalLines.length != other.horizontalLines.length) return false;
     if (verticalLines.length != other.verticalLines.length) return false;
+    if (margins != other.margins) return false;
     for (int i = 0; i < horizontalLines.length; i++) {
       if (horizontalLines[i] != other.horizontalLines[i]) return false;
     }
@@ -35,18 +42,22 @@ class GridLinesSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(horizontalLines),
-        Object.hashAll(verticalLines),
-      );
+    Object.hashAll(horizontalLines),
+    Object.hashAll(verticalLines),
+    margins,
+  );
 }
+
+/// 旧版快照类型别名（保持向后兼容）
+typedef GridLinesSnapshot = EditorSnapshot;
 
 /// 编辑器历史记录管理器
 class EditorHistory {
   /// 历史记录栈
-  final List<GridLinesSnapshot> _undoStack = [];
+  final List<EditorSnapshot> _undoStack = [];
 
   /// 重做栈
-  final List<GridLinesSnapshot> _redoStack = [];
+  final List<EditorSnapshot> _redoStack = [];
 
   /// 最大历史记录数量
   static const int maxHistorySize = 50;
@@ -65,7 +76,7 @@ class EditorHistory {
 
   /// 保存当前状态到历史记录
   /// 调用此方法时，会清空重做栈
-  void saveState(GridLinesSnapshot snapshot) {
+  void saveState(EditorSnapshot snapshot) {
     // 如果和上一个状态相同，不保存
     if (_undoStack.isNotEmpty && _undoStack.last == snapshot) {
       return;
@@ -82,7 +93,7 @@ class EditorHistory {
 
   /// 撤销操作
   /// 返回要恢复的状态，如果无法撤销则返回 null
-  GridLinesSnapshot? undo(GridLinesSnapshot currentState) {
+  EditorSnapshot? undo(EditorSnapshot currentState) {
     if (!canUndo) return null;
 
     // 将当前状态保存到重做栈
@@ -94,7 +105,7 @@ class EditorHistory {
 
   /// 重做操作
   /// 返回要恢复的状态，如果无法重做则返回 null
-  GridLinesSnapshot? redo(GridLinesSnapshot currentState) {
+  EditorSnapshot? redo(EditorSnapshot currentState) {
     if (!canRedo) return null;
 
     // 将当前状态保存到撤销栈

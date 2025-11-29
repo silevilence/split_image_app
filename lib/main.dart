@@ -6,6 +6,7 @@ import 'providers/editor_provider.dart';
 import 'providers/preview_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/config_service.dart';
+import 'shortcuts/shortcut_wrapper.dart';
 import 'widgets/settings_dialog.dart';
 
 void main() async {
@@ -72,13 +73,16 @@ class _MainWindow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      children: [
-        // 自定义标题栏 (支持窗口拖拽)
-        _TitleBar(),
-        // 主内容
-        Expanded(child: HomeScreen()),
-      ],
+    return ShortcutWrapper(
+      showNotifications: false, // 主窗口级别不显示通知，由具体组件自行控制
+      child: const Column(
+        children: [
+          // 自定义标题栏 (支持窗口拖拽)
+          _TitleBar(),
+          // 主内容
+          Expanded(child: HomeScreen()),
+        ],
+      ),
     );
   }
 }
@@ -177,7 +181,9 @@ class _WindowButtonState extends State<_WindowButton> {
           width: 46,
           height: 32,
           color: _isHovered
-              ? (widget.isClose ? Colors.red : theme.resources.subtleFillColorSecondary)
+              ? (widget.isClose
+                    ? Colors.red
+                    : theme.resources.subtleFillColorSecondary)
               : Colors.transparent,
           child: Icon(
             widget.icon,
@@ -191,4 +197,3 @@ class _WindowButtonState extends State<_WindowButton> {
     );
   }
 }
-

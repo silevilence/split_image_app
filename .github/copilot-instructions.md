@@ -120,3 +120,37 @@ flutter build windows     # Release 构建
 2. 在 `services/config_service.dart` 添加 setter 方法
 3. 在 `editor_canvas.dart` 的 `_handleKeyEvent()` 中使用 `matchesShortcut()` 检查
 4. 在 `widgets/settings_dialog.dart` 添加 UI 编辑行
+
+## 🔄 Development & Documentation Protocol
+
+### 1. 🛡️ Code Verification (Pre-Delivery)
+- **Mandatory Compilation:** 在完成代码编写后，**必须**调用终端工具执行 `flutter pub get` 和 `flutter build`。
+- **Zero Errors:** 必须确保编译器无报错。如果发现错误，必须立即自行修正，直到编译通过为止，**严禁**将无法通过编译的代码交付给用户。
+
+### 2. 📢 Testing Notification (交付测试)
+当代码编译通过后，使用 `flutter run -d windows` 打开应用，并向用户发送"功能测试"通知。
+**Format:** 必须保持**简短、清晰**，禁止输出大段文字。格式如下：
+- **功能点:** [功能名称]
+- **入口:** [UI位置，如：侧边栏 -> 设置按钮]
+- **操作:** [简要步骤，如：按下 Ctrl+E 观察模式切换]
+
+### 3. 📚 Documentation Sync (Post-Test)
+- **Trigger:** 仅当用户明确告知 **"功能测试通过"** 或 **"更新文档"** 后触发。
+- **Action:** 必须同时更新以下三个文件（直接修改，不输出内容）：
+  1. **`README.md`:** 更新 Features 列表。
+  2. **`copilot-instructions.md`:** (重要) 将新引入的 Package、关键架构决策（如 TOML/Strategy Pattern）追加到文件末尾，以保持上下文记忆。
+  3. **`ROADMAP.md`:** 将对应任务从 **"🚧 开发中"** 移至 **"✅ 已完成"**。
+
+---
+
+## 📖 Architecture Notes (上下文记忆)
+
+### Shortcuts/Actions 系统 (2025-11-29)
+- **架构:** 使用 Flutter 标准的 `Shortcuts` + `Actions` 系统
+- **文件结构:**
+  - `lib/shortcuts/app_intents.dart` - Intent 定义类
+  - `lib/shortcuts/shortcut_manager.dart` - `AppShortcutManager` 解析配置、生成映射、冲突检测
+  - `lib/shortcuts/shortcut_wrapper.dart` - `ShortcutWrapper` 组件包装、`buildTooltipWithShortcut()` 工具函数
+- **集成方式:** 在 `main.dart` 的 `_MainWindow` 中用 `ShortcutWrapper` 包装整个应用
+- **方向键微调:** 因需要支持 `KeyRepeatEvent`，保留在 `editor_canvas.dart` 的 `_handleKeyEvent` 中单独处理
+- **配置同步:** `AppShortcutManager` 监听 `ConfigService` 变化，自动更新快捷键映射

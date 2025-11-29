@@ -28,6 +28,36 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 ## ✅ 已完成 (Completed)
 
+### Feature: 快捷键与模式切换增强 (Shortcuts & Mode Switching)
+**完成日期:** 2025-11-29
+
+#### 📝 Description
+引入 Flutter 标准的 Shortcuts/Actions 系统，提供更灵活的快捷键配置和模式切换。
+
+#### ✅ Checklist
+- [x] 迁移至 Flutter `Shortcuts` / `Actions` 系统
+- [x] View Mode 快捷键切换 (预览/拖拽画布)
+- [x] Edit Mode 快捷键切换 (调整切割线)
+- [x] 快捷键与配置系统集成 (从 config.toml 读取)
+- [x] 快捷键冲突检测
+- [x] 快捷键提示 (Tooltip 显示快捷键)
+
+#### 📁 产出文件
+```
+lib/
+├── shortcuts/
+│   ├── app_intents.dart          # Intent 定义
+│   ├── shortcut_manager.dart     # 快捷键解析与管理
+│   └── shortcut_wrapper.dart     # Shortcuts/Actions 包装组件
+├── main.dart                     # 更新: 集成 ShortcutWrapper
+├── widgets/
+│   ├── editor_canvas.dart        # 更新: 简化键盘处理
+│   ├── preview_panel.dart        # 更新: Tooltip 显示快捷键
+│   └── settings_dialog.dart      # 更新: 冲突检测 UI
+```
+
+---
+
 ### Feature: 图片边缘留白控制 (Margins / Effective Area)
 **完成日期:** 2025-11-29
 
@@ -283,52 +313,6 @@ lib/
 
 ---
 
-### Feature: 快捷键与模式切换增强 (Shortcuts & Mode Switching)
-**优先级:** 🟡 中  
-**预计工时:** 2-3h
-
-#### 📝 Description
-引入 Flutter 标准的 Shortcuts/Actions 系统，提供更灵活的快捷键配置和模式切换。
-
-#### ✅ Checklist
-- [ ] 迁移至 Flutter `Shortcuts` / `Actions` 系统
-- [ ] View Mode 快捷键切换 (预览/拖拽画布)
-- [ ] Edit Mode 快捷键切换 (调整切割线)
-- [ ] 快捷键与配置系统集成 (从 config.toml 读取)
-- [ ] 快捷键冲突检测
-- [ ] 快捷键提示 (Tooltip 显示快捷键)
-
-#### 🔧 Technical Considerations
-- **Shortcuts Widget 结构:**
-  ```dart
-  Shortcuts(
-    shortcuts: {
-      LogicalKeySet(LogicalKeyboardKey.keyV): ToggleModeIntent(),
-      LogicalKeySet(LogicalKeyboardKey.delete): DeleteLineIntent(),
-      // ...从配置文件读取
-    },
-    child: Actions(
-      actions: {
-        ToggleModeIntent: CallbackAction<ToggleModeIntent>(...),
-        DeleteLineIntent: CallbackAction<DeleteLineIntent>(...),
-      },
-      child: ...,
-    ),
-  )
-  ```
-- **Intent 类定义:** 为每个操作创建对应的 Intent 类
-- **配置同步:** 快捷键修改后实时更新 Shortcuts 映射
-
-#### 📁 产出文件
-```
-lib/
-├── shortcuts/
-│   ├── app_intents.dart
-│   └── shortcut_manager.dart
-└── widgets/
-    └── shortcut_wrapper.dart
-```
-
 ---
 
 ## 🎯 新功能里程碑概览
@@ -337,9 +321,9 @@ lib/
 |---------|--------|---------|------|------|
 | 设置系统与数据持久化 | 🔴 高 | 3-4h | - | ✅ 已完成 |
 | 图片边缘留白控制 | 🟡 中 | 2-3h | - | ✅ 已完成 |
+| 快捷键与模式切换增强 | 🟡 中 | 2-3h | - | ✅ 已完成 |
 | Grid Algorithm Architecture | 🔴 高 | 2-3h | - | 📅 计划中 |
 | 智能网格初始化算法 | 🔴 高 | 4-6h | Architecture | 📅 计划中 |
-| 快捷键与模式切换增强 | 🟡 中 | 2-3h | - | 📅 计划中 |
 
 ---
 

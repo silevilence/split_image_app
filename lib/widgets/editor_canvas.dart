@@ -1,13 +1,18 @@
 import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' show PopupMenuEntry, PopupMenuItem, PopupMenuDivider, showMenu, RelativeRect;
+import 'package:flutter/material.dart'
+    show
+        PopupMenuEntry,
+        PopupMenuItem,
+        PopupMenuDivider,
+        showMenu,
+        RelativeRect;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../models/margins.dart';
 import '../providers/editor_provider.dart';
-import '../services/config_service.dart';
+import '../shortcuts/shortcut_wrapper.dart';
 import '../utils/coordinate_utils.dart';
 import 'grid_painter.dart';
 
@@ -23,7 +28,7 @@ class EditorCanvas extends StatefulWidget {
 class _EditorCanvasState extends State<EditorCanvas> {
   final TransformationController _transformationController =
       TransformationController();
-  
+
   // Focus node for keyboard events
   final FocusNode _focusNode = FocusNode();
 
@@ -33,7 +38,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
   int? _draggingHorizontalIndex;
   int? _draggingVerticalIndex;
   bool _isDragging = false;
-  
+
   // 记录按下时的位置，用于区分点击和拖拽
   Offset? _pointerDownPosition;
   static const double _dragThreshold = 5.0; // 拖拽阈值
@@ -51,7 +56,11 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 检测鼠标是否悬停在网格线上
-  void _checkLineHover(Offset localPosition, Size renderSize, EditorProvider provider) {
+  void _checkLineHover(
+    Offset localPosition,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
     if (provider.imageSize == null || _isDragging) return;
 
     int? newHoveredH;
@@ -60,7 +69,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
     // 检测水平线
     for (int i = 0; i < provider.horizontalLines.length; i++) {
       final lineY = renderSize.height * provider.horizontalLines[i];
-      if (CoordinateUtils.isNearLine(localPosition, lineY, true, threshold: 8.0)) {
+      if (CoordinateUtils.isNearLine(
+        localPosition,
+        lineY,
+        true,
+        threshold: 8.0,
+      )) {
         newHoveredH = i;
         break;
       }
@@ -69,7 +83,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
     // 检测垂直线
     for (int i = 0; i < provider.verticalLines.length; i++) {
       final lineX = renderSize.width * provider.verticalLines[i];
-      if (CoordinateUtils.isNearLine(localPosition, lineX, false, threshold: 8.0)) {
+      if (CoordinateUtils.isNearLine(
+        localPosition,
+        lineX,
+        false,
+        threshold: 8.0,
+      )) {
         newHoveredV = i;
         break;
       }
@@ -85,11 +104,20 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 检测点击位置是否在某条线上，返回线索引和类型
-  (int?, bool?) _detectLineAtPosition(Offset localPosition, Size renderSize, EditorProvider provider) {
+  (int?, bool?) _detectLineAtPosition(
+    Offset localPosition,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
     // 检测水平线
     for (int i = 0; i < provider.horizontalLines.length; i++) {
       final lineY = renderSize.height * provider.horizontalLines[i];
-      if (CoordinateUtils.isNearLine(localPosition, lineY, true, threshold: 8.0)) {
+      if (CoordinateUtils.isNearLine(
+        localPosition,
+        lineY,
+        true,
+        threshold: 8.0,
+      )) {
         return (i, true);
       }
     }
@@ -97,7 +125,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
     // 检测垂直线
     for (int i = 0; i < provider.verticalLines.length; i++) {
       final lineX = renderSize.width * provider.verticalLines[i];
-      if (CoordinateUtils.isNearLine(localPosition, lineX, false, threshold: 8.0)) {
+      if (CoordinateUtils.isNearLine(
+        localPosition,
+        lineX,
+        false,
+        threshold: 8.0,
+      )) {
         return (i, false);
       }
     }
@@ -106,12 +139,20 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 处理指针按下
-  void _handlePointerDown(PointerDownEvent event, Size renderSize, EditorProvider provider) {
+  void _handlePointerDown(
+    PointerDownEvent event,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
     _pointerDownPosition = event.localPosition;
-    
+
     if (event.buttons == 1) {
       // 左键按下：记录位置，检测是否在线上
-      final (lineIndex, isHorizontal) = _detectLineAtPosition(event.localPosition, renderSize, provider);
+      final (lineIndex, isHorizontal) = _detectLineAtPosition(
+        event.localPosition,
+        renderSize,
+        provider,
+      );
       if (lineIndex != null && isHorizontal != null) {
         // 在线上按下，准备拖拽
         setState(() {
@@ -126,11 +167,15 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 处理指针移动
-  void _handlePointerMove(PointerMoveEvent event, Size renderSize, EditorProvider provider) {
+  void _handlePointerMove(
+    PointerMoveEvent event,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
     if (_pointerDownPosition == null) return;
-    
+
     final distance = (event.localPosition - _pointerDownPosition!).distance;
-    
+
     // 如果移动距离超过阈值，开始拖拽
     if (!_isDragging && distance > _dragThreshold) {
       if (_draggingHorizontalIndex != null || _draggingVerticalIndex != null) {
@@ -141,24 +186,33 @@ class _EditorCanvasState extends State<EditorCanvas> {
         });
       }
     }
-    
+
     // 更新拖拽位置
     if (_isDragging && provider.imageSize != null) {
       if (_draggingHorizontalIndex != null) {
-        final newPosition = (event.localPosition.dy / renderSize.height).clamp(0.0, 1.0);
+        final newPosition = (event.localPosition.dy / renderSize.height).clamp(
+          0.0,
+          1.0,
+        );
         provider.updateGridLine(_draggingHorizontalIndex!, newPosition, true);
       } else if (_draggingVerticalIndex != null) {
-        final newPosition = (event.localPosition.dx / renderSize.width).clamp(0.0, 1.0);
+        final newPosition = (event.localPosition.dx / renderSize.width).clamp(
+          0.0,
+          1.0,
+        );
         provider.updateGridLine(_draggingVerticalIndex!, newPosition, false);
       }
     }
   }
 
   /// 处理指针抬起
-  void _handlePointerUp(PointerUpEvent event, Size renderSize, EditorProvider provider) {
+  void _handlePointerUp(
+    PointerUpEvent event,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
     final wasDragging = _isDragging;
-    final hadLine = _draggingHorizontalIndex != null || _draggingVerticalIndex != null;
-    
+
     // 如果没有拖拽，当作点击处理
     if (!wasDragging && _pointerDownPosition != null) {
       final distance = (event.localPosition - _pointerDownPosition!).distance;
@@ -167,12 +221,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
         _handleClick(event.localPosition, renderSize, provider);
       }
     }
-    
+
     // 拖拽结束，调用 endEdit
     if (wasDragging) {
       provider.endEdit();
     }
-    
+
     // 重置状态
     setState(() {
       _isDragging = false;
@@ -184,8 +238,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
   /// 处理点击（非拖拽）
   void _handleClick(Offset position, Size renderSize, EditorProvider provider) {
-    final (lineIndex, isHorizontal) = _detectLineAtPosition(position, renderSize, provider);
-    
+    final (lineIndex, isHorizontal) = _detectLineAtPosition(
+      position,
+      renderSize,
+      provider,
+    );
+
     if (lineIndex != null && isHorizontal != null) {
       // 点击在线上，选中该线
       provider.selectLine(lineIndex, isHorizontal);
@@ -197,26 +255,35 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 显示右键菜单
-  void _showContextMenu(BuildContext context, Offset position, Size renderSize, EditorProvider provider) {
-    final (lineIndex, isHorizontal) = _detectLineAtPosition(position, renderSize, provider);
-    
+  void _showContextMenu(
+    BuildContext context,
+    Offset position,
+    Size renderSize,
+    EditorProvider provider,
+  ) {
+    final (lineIndex, isHorizontal) = _detectLineAtPosition(
+      position,
+      renderSize,
+      provider,
+    );
+
     // 计算菜单显示位置（转换为全局坐标）
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    
+
     final globalPosition = renderBox.localToGlobal(position);
-    
+
     // 构建菜单项
     final menuItems = <MenuFlyoutItemBase>[];
-    
+
     if (lineIndex != null && isHorizontal != null) {
       // 在线上右键
       provider.selectLine(lineIndex, isHorizontal);
       final lineType = isHorizontal ? '水平线' : '垂直线';
-      final linePos = isHorizontal 
-          ? provider.horizontalLines[lineIndex] 
+      final linePos = isHorizontal
+          ? provider.horizontalLines[lineIndex]
           : provider.verticalLines[lineIndex];
-      
+
       menuItems.addAll([
         MenuFlyoutItem(
           leading: const Icon(FluentIcons.info, size: 14),
@@ -250,7 +317,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
       // 计算点击位置对应的实际像素坐标
       final pixelX = (relativePos.dx * provider.imageSize!.width).round();
       final pixelY = (relativePos.dy * provider.imageSize!.height).round();
-      
+
       menuItems.addAll([
         MenuFlyoutItem(
           leading: const Icon(FluentIcons.remove, size: 14),
@@ -286,14 +353,18 @@ class _EditorCanvasState extends State<EditorCanvas> {
         ),
         MenuFlyoutItem(
           leading: const Icon(FluentIcons.padding_right, size: 14),
-          text: Text('设为右边距 (${(provider.imageSize!.width - pixelX).round()} px)'),
+          text: Text(
+            '设为右边距 (${(provider.imageSize!.width - pixelX).round()} px)',
+          ),
           onPressed: () {
             provider.setMarginRight(provider.imageSize!.width - pixelX);
             displayInfoBar(
               context,
               builder: (ctx, close) => InfoBar(
                 title: const Text('已设置右边距'),
-                content: Text('${(provider.imageSize!.width - pixelX).round()} px'),
+                content: Text(
+                  '${(provider.imageSize!.width - pixelX).round()} px',
+                ),
                 severity: InfoBarSeverity.success,
               ),
               duration: const Duration(seconds: 1),
@@ -318,14 +389,18 @@ class _EditorCanvasState extends State<EditorCanvas> {
         ),
         MenuFlyoutItem(
           leading: const Icon(FluentIcons.padding_bottom, size: 14),
-          text: Text('设为下边距 (${(provider.imageSize!.height - pixelY).round()} px)'),
+          text: Text(
+            '设为下边距 (${(provider.imageSize!.height - pixelY).round()} px)',
+          ),
           onPressed: () {
             provider.setMarginBottom(provider.imageSize!.height - pixelY);
             displayInfoBar(
               context,
               builder: (ctx, close) => InfoBar(
                 title: const Text('已设置下边距'),
-                content: Text('${(provider.imageSize!.height - pixelY).round()} px'),
+                content: Text(
+                  '${(provider.imageSize!.height - pixelY).round()} px',
+                ),
                 severity: InfoBarSeverity.success,
               ),
               duration: const Duration(seconds: 1),
@@ -353,7 +428,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
         ],
       ]);
     }
-    
+
     // 显示菜单
     final theme = FluentTheme.of(context);
     showMenu<String>(
@@ -372,7 +447,10 @@ class _EditorCanvasState extends State<EditorCanvas> {
             onTap: item.onPressed,
             child: Row(
               children: [
-                if (item.leading != null) ...[item.leading!, const SizedBox(width: 8)],
+                if (item.leading != null) ...[
+                  item.leading!,
+                  const SizedBox(width: 8),
+                ],
                 DefaultTextStyle(
                   style: TextStyle(color: theme.typography.body?.color),
                   child: item.text,
@@ -388,107 +466,37 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   /// 处理键盘事件
+  ///
+  /// 主要处理方向键微调（需要支持 KeyRepeat），
+  /// 其他快捷键由 ShortcutWrapper 通过 Shortcuts/Actions 系统处理。
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     final provider = context.read<EditorProvider>();
-    final shortcuts = ConfigService.instance.config.shortcuts;
-    
+
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
-      final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
-      final isAltPressed = HardwareKeyboard.instance.isAltPressed;
-      
-      // 检查按键是否匹配快捷键配置
-      bool matchesShortcut(String shortcutStr, LogicalKeyboardKey key) {
-        final parts = shortcutStr.split('+').map((s) => s.trim().toLowerCase()).toList();
-        final needsCtrl = parts.contains('ctrl');
-        final needsShift = parts.contains('shift');
-        final needsAlt = parts.contains('alt');
-        final keyPart = parts.where((p) => !['ctrl', 'shift', 'alt'].contains(p)).firstOrNull?.toUpperCase();
-        
-        if (needsCtrl != isCtrlPressed) return false;
-        // 对于字母键，忽略 Shift 状态（因为 Shift+V 和 V 是同一个键）
-        // 只有当快捷键明确要求 Shift 时才检查
-        if (needsShift && !isShiftPressed) return false;
-        if (!needsShift && isShiftPressed) {
-          // 如果快捷键不需要 Shift，但用户按了 Shift
-          // 对于字母键，允许这种情况（大小写无关）
-          // 对于其他键（如 Ctrl+Z），不允许
-          if (needsCtrl || needsAlt) return false;
-        }
-        if (needsAlt != isAltPressed) return false;
-        
-        if (keyPart == null) return false;
-        
-        // 获取当前按键的标签
-        final currentKeyLabel = _getKeyLabel(key);
-        return currentKeyLabel?.toUpperCase() == keyPart;
-      }
-      
-      // 撤销
-      if (matchesShortcut(shortcuts.undo, event.logicalKey)) {
-        if (provider.canUndo) {
-          provider.undo();
-          displayInfoBar(
-            context,
-            builder: (ctx, close) => const InfoBar(
-              title: Text('已撤销'),
-              severity: InfoBarSeverity.info,
-            ),
-            duration: const Duration(milliseconds: 800),
-          );
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      }
-      
-      // 重做
-      if (matchesShortcut(shortcuts.redo, event.logicalKey)) {
-        if (provider.canRedo) {
-          provider.redo();
-          displayInfoBar(
-            context,
-            builder: (ctx, close) => const InfoBar(
-              title: Text('已重做'),
-              severity: InfoBarSeverity.info,
-            ),
-            duration: const Duration(milliseconds: 800),
-          );
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      }
-      
-      // 切换模式 (不需要编辑模式)
-      if (matchesShortcut(shortcuts.toggleMode, event.logicalKey)) {
-        provider.toggleEditMode();
-        return KeyEventResult.handled;
-      }
-      
       // 以下操作需要编辑模式且有选中线
-      if (!provider.isEditMode || !provider.hasSelectedLine || provider.imageSize == null) {
+      if (!provider.isEditMode ||
+          !provider.hasSelectedLine ||
+          provider.imageSize == null) {
         return KeyEventResult.ignored;
       }
 
       final imageSize = provider.imageSize!;
-      
-      // 删除线条
-      if (matchesShortcut(shortcuts.deleteLine, event.logicalKey)) {
-        provider.deleteSelectedLine();
-        return KeyEventResult.handled;
-      }
-
-      // 方向键微调（1px）
-      double delta = 0;
       final isHorizontal = provider.selectedLineIsHorizontal ?? false;
       final relevantSize = isHorizontal ? imageSize.height : imageSize.width;
 
+      // 方向键微调（1px）- 需要支持 KeyRepeat，所以在这里处理
+      double delta = 0;
+
       if (event.logicalKey == LogicalKeyboardKey.arrowUp && isHorizontal) {
         delta = -1.0 / relevantSize;
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown && isHorizontal) {
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+          isHorizontal) {
         delta = 1.0 / relevantSize;
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft && !isHorizontal) {
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          !isHorizontal) {
         delta = -1.0 / relevantSize;
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight && !isHorizontal) {
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+          !isHorizontal) {
         delta = 1.0 / relevantSize;
       }
 
@@ -501,44 +509,6 @@ class _EditorCanvasState extends State<EditorCanvas> {
     }
 
     return KeyEventResult.ignored;
-  }
-  
-  /// 获取按键标签
-  String? _getKeyLabel(LogicalKeyboardKey key) {
-    final specialKeys = {
-      LogicalKeyboardKey.delete: 'Delete',
-      LogicalKeyboardKey.backspace: 'Backspace',
-      LogicalKeyboardKey.enter: 'Enter',
-      LogicalKeyboardKey.tab: 'Tab',
-      LogicalKeyboardKey.space: 'Space',
-      LogicalKeyboardKey.arrowUp: 'Up',
-      LogicalKeyboardKey.arrowDown: 'Down',
-      LogicalKeyboardKey.arrowLeft: 'Left',
-      LogicalKeyboardKey.arrowRight: 'Right',
-      LogicalKeyboardKey.f1: 'F1',
-      LogicalKeyboardKey.f2: 'F2',
-      LogicalKeyboardKey.f3: 'F3',
-      LogicalKeyboardKey.f4: 'F4',
-      LogicalKeyboardKey.f5: 'F5',
-      LogicalKeyboardKey.f6: 'F6',
-      LogicalKeyboardKey.f7: 'F7',
-      LogicalKeyboardKey.f8: 'F8',
-      LogicalKeyboardKey.f9: 'F9',
-      LogicalKeyboardKey.f10: 'F10',
-      LogicalKeyboardKey.f11: 'F11',
-      LogicalKeyboardKey.f12: 'F12',
-    };
-
-    if (specialKeys.containsKey(key)) {
-      return specialKeys[key];
-    }
-
-    final keyLabel = key.keyLabel;
-    if (keyLabel.isNotEmpty && keyLabel.length == 1) {
-      return keyLabel.toUpperCase();
-    }
-
-    return null;
   }
 
   @override
@@ -587,9 +557,10 @@ class _EditorCanvasState extends State<EditorCanvas> {
                       builder: (context, constraints) {
                         // 计算图片的实际渲染尺寸（基于 BoxFit.contain）
                         final imageSize = provider.imageSize!;
-                        final containerAspect = constraints.maxWidth / constraints.maxHeight;
+                        final containerAspect =
+                            constraints.maxWidth / constraints.maxHeight;
                         final imageAspect = imageSize.width / imageSize.height;
-                        
+
                         Size renderSize;
                         if (containerAspect > imageAspect) {
                           // 容器更宽，图片按高度缩放
@@ -622,12 +593,17 @@ class _EditorCanvasState extends State<EditorCanvas> {
                                     verticalLines: provider.verticalLines,
                                     imageSize: provider.imageSize!,
                                     margins: provider.margins,
-                                    hoveredHorizontalIndex: _hoveredHorizontalIndex,
+                                    hoveredHorizontalIndex:
+                                        _hoveredHorizontalIndex,
                                     hoveredVerticalIndex: _hoveredVerticalIndex,
-                                    selectedHorizontalIndex: provider.selectedLineIsHorizontal == true
+                                    selectedHorizontalIndex:
+                                        provider.selectedLineIsHorizontal ==
+                                            true
                                         ? provider.selectedLineIndex
                                         : null,
-                                    selectedVerticalIndex: provider.selectedLineIsHorizontal == false
+                                    selectedVerticalIndex:
+                                        provider.selectedLineIsHorizontal ==
+                                            false
                                         ? provider.selectedLineIndex
                                         : null,
                                     isDragging: _isDragging,
@@ -635,15 +611,20 @@ class _EditorCanvasState extends State<EditorCanvas> {
                                 ),
                               ),
                             // 交互层：仅在编辑模式下启用
-                            if (provider.imageSize != null && provider.isEditMode)
+                            if (provider.imageSize != null &&
+                                provider.isEditMode)
                               Positioned.fill(
                                 child: MouseRegion(
-                                  cursor: (_hoveredHorizontalIndex != null ||
+                                  cursor:
+                                      (_hoveredHorizontalIndex != null ||
                                           _hoveredVerticalIndex != null)
                                       ? SystemMouseCursors.move
                                       : SystemMouseCursors.precise,
-                                  onHover: (event) =>
-                                      _checkLineHover(event.localPosition, renderSize, provider),
+                                  onHover: (event) => _checkLineHover(
+                                    event.localPosition,
+                                    renderSize,
+                                    provider,
+                                  ),
                                   onExit: (_) {
                                     setState(() {
                                       _hoveredHorizontalIndex = null;
@@ -653,13 +634,25 @@ class _EditorCanvasState extends State<EditorCanvas> {
                                   child: Listener(
                                     behavior: HitTestBehavior.translucent,
                                     onPointerDown: (event) {
-                                      _handlePointerDown(event, renderSize, provider);
+                                      _handlePointerDown(
+                                        event,
+                                        renderSize,
+                                        provider,
+                                      );
                                     },
                                     onPointerMove: (event) {
-                                      _handlePointerMove(event, renderSize, provider);
+                                      _handlePointerMove(
+                                        event,
+                                        renderSize,
+                                        provider,
+                                      );
                                     },
                                     onPointerUp: (event) {
-                                      _handlePointerUp(event, renderSize, provider);
+                                      _handlePointerUp(
+                                        event,
+                                        renderSize,
+                                        provider,
+                                      );
                                     },
                                     onPointerCancel: (_) {
                                       setState(() {
@@ -672,9 +665,16 @@ class _EditorCanvasState extends State<EditorCanvas> {
                                     child: GestureDetector(
                                       behavior: HitTestBehavior.translucent,
                                       onSecondaryTapUp: (details) {
-                                        _showContextMenu(context, details.localPosition, renderSize, provider);
+                                        _showContextMenu(
+                                          context,
+                                          details.localPosition,
+                                          renderSize,
+                                          provider,
+                                        );
                                       },
-                                      child: Container(color: Colors.transparent),
+                                      child: Container(
+                                        color: Colors.transparent,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -728,7 +728,10 @@ class _EditorCanvasState extends State<EditorCanvas> {
           // 模式切换按钮
           if (provider.imageSize != null) ...[
             Tooltip(
-              message: provider.isEditMode ? '切换到查看模式' : '切换到编辑模式',
+              message: buildTooltipWithShortcut(
+                provider.isEditMode ? '切换到查看模式' : '切换到编辑模式',
+                'toggleMode',
+              ),
               child: ToggleButton(
                 checked: provider.isEditMode,
                 onChanged: (value) => provider.setEditMode(value),
@@ -775,10 +778,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
             color: theme.accentColor.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
-          Text(
-            '拖拽图片到此处',
-            style: theme.typography.subtitle,
-          ),
+          Text('拖拽图片到此处', style: theme.typography.subtitle),
           const SizedBox(height: 8),
           Text(
             '或点击右侧面板选择文件',
