@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/editor_history.dart';
 import '../models/grid_config.dart';
 import '../models/grid_line.dart';
+import '../models/margins.dart';
 
 /// 图片编辑器状态管理
 class EditorProvider extends ChangeNotifier {
@@ -49,6 +50,25 @@ class EditorProvider extends ChangeNotifier {
   /// 是否已自动交换行列
   bool _wasSwapped = false;
   bool get wasSwapped => _wasSwapped;
+
+  // ============ 边距设置 ============
+
+  /// 图片边缘留白
+  ImageMargins _margins = ImageMargins.zero;
+  ImageMargins get margins => _margins;
+
+  /// 有效区域（排除边距后的区域）
+  Rect? get effectiveRect {
+    if (_imageSize == null) return null;
+    return _margins.getEffectiveRect(_imageSize!);
+  }
+
+  /// 有效区域尺寸
+  Size? get effectiveSize {
+    final rect = effectiveRect;
+    if (rect == null) return null;
+    return Size(rect.width, rect.height);
+  }
 
   /// 编辑模式（true: 可拖拽网格线，false: 可平移缩放画布）
   bool _isEditMode = false;
@@ -217,6 +237,8 @@ class EditorProvider extends ChangeNotifier {
   }
 
   /// 根据行列数生成均匀分布的网格线
+  /// 网格线位置是相对于有效区域的比例 (0.0-1.0)
+  /// 然后映射到整个图片的相对位置
   void _generateGridLines() {
     if (_imageSize == null) {
       _horizontalLines = [];
@@ -224,16 +246,33 @@ class EditorProvider extends ChangeNotifier {
       return;
     }
 
+    final rect = effectiveRect!;
+    
     // 生成水平线（行数-1条）
+    // 相对位置需要从有效区域映射到整个图片
     _horizontalLines = List.generate(
       _gridConfig.rows - 1,
-      (i) => (i + 1) / _gridConfig.rows,
+      (i) {
+        // 在有效区域内的相对位置
+        final relativeInEffective = (i + 1) / _gridConfig.rows;
+        // 在有效区域内的实际 Y 坐标
+        final actualY = rect.top + rect.height * relativeInEffective;
+        // 转换为整个图片的相对位置
+        return actualY / _imageSize!.height;
+      },
     );
 
     // 生成垂直线（列数-1条）
     _verticalLines = List.generate(
       _gridConfig.cols - 1,
-      (i) => (i + 1) / _gridConfig.cols,
+      (i) {
+        // 在有效区域内的相对位置
+        final relativeInEffective = (i + 1) / _gridConfig.cols;
+        // 在有效区域内的实际 X 坐标
+        final actualX = rect.left + rect.width * relativeInEffective;
+        // 转换为整个图片的相对位置
+        return actualX / _imageSize!.width;
+      },
     );
   }
 
@@ -332,6 +371,46 @@ class EditorProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 设置边距
+  void setMargins(ImageMargins margins) {
+    if (_imageSize == null) return;
+    
+    // 验证边距有效性
+    final error = margins.validate(_imageSize!);
+    if (error != null) {
+      // 无效边距，不应用
+      return;
+    }
+    
+    _margins = margins;
+    _generateGridLines();
+    notifyListeners();
+  }
+
+  /// 设置单个边距值
+  void setMarginTop(double value) {
+    setMargins(_margins.copyWith(top: value.clamp(0, double.infinity)));
+  }
+
+  void setMarginBottom(double value) {
+    setMargins(_margins.copyWith(bottom: value.clamp(0, double.infinity)));
+  }
+
+  void setMarginLeft(double value) {
+    setMargins(_margins.copyWith(left: value.clamp(0, double.infinity)));
+  }
+
+  void setMarginRight(double value) {
+    setMargins(_margins.copyWith(right: value.clamp(0, double.infinity)));
+  }
+
+  /// 重置边距为零
+  void resetMargins() {
+    _margins = ImageMargins.zero;
+    _generateGridLines();
+    notifyListeners();
+  }
+
   /// 更新网格线位置
   /// [index] 线的索引
   /// [newPosition] 新位置（相对位置 0.0-1.0）
@@ -364,6 +443,7 @@ class EditorProvider extends ChangeNotifier {
     _isEditMode = false;
     _selectedLineIndex = null;
     _selectedLineIsHorizontal = null;
+    _margins = ImageMargins.zero;
     notifyListeners();
   }
 

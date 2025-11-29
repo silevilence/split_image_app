@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../models/margins.dart';
 import '../models/slice_preview.dart';
 
 /// 预览系统状态管理
@@ -45,13 +46,16 @@ class PreviewProvider extends ChangeNotifier {
 
   /// 生成预览切片
   /// [imageFile] 源图片文件
-  /// [horizontalLines] 水平线位置列表（相对位置 0.0-1.0）
-  /// [verticalLines] 垂直线位置列表（相对位置 0.0-1.0）
+  /// [horizontalLines] 水平线位置列表（相对于整个图片的位置 0.0-1.0）
+  /// [verticalLines] 垂直线位置列表（相对于整个图片的位置 0.0-1.0）
+  /// [imageSize] 图片尺寸
+  /// [margins] 边距设置（用于确定切片边界）
   Future<void> generatePreview({
     required File imageFile,
     required List<double> horizontalLines,
     required List<double> verticalLines,
     required Size imageSize,
+    ImageMargins margins = ImageMargins.zero,
   }) async {
     _isGenerating = true;
     _progress = 0.0;
@@ -66,11 +70,15 @@ class PreviewProvider extends ChangeNotifier {
       final frame = await codec.getNextFrame();
       final sourceImage = frame.image;
 
+      // 计算有效区域
+      final effectiveRect = margins.getEffectiveRect(imageSize);
+
       // 计算所有切片区域
       final regions = _calculateSliceRegions(
         imageSize,
         horizontalLines,
         verticalLines,
+        effectiveRect,
       );
 
       final totalSlices = regions.length;
@@ -107,16 +115,24 @@ class PreviewProvider extends ChangeNotifier {
   }
 
   /// 计算所有切片区域
+  /// [effectiveRect] 有效区域（排除边距后的区域）
   List<Map<String, dynamic>> _calculateSliceRegions(
     Size imageSize,
     List<double> horizontalLines,
     List<double> verticalLines,
+    Rect effectiveRect,
   ) {
     final regions = <Map<String, dynamic>>[];
 
-    // 添加边界（0.0 和 1.0）
-    final hLines = [0.0, ...horizontalLines, 1.0];
-    final vLines = [0.0, ...verticalLines, 1.0];
+    // 将有效区域的边界转换为相对位置
+    final effectiveTop = effectiveRect.top / imageSize.height;
+    final effectiveBottom = effectiveRect.bottom / imageSize.height;
+    final effectiveLeft = effectiveRect.left / imageSize.width;
+    final effectiveRight = effectiveRect.right / imageSize.width;
+
+    // 添加有效区域的边界作为起止点（而不是 0.0 和 1.0）
+    final hLines = [effectiveTop, ...horizontalLines, effectiveBottom];
+    final vLines = [effectiveLeft, ...verticalLines, effectiveRight];
 
     // 计算每个切片区域
     for (int row = 0; row < hLines.length - 1; row++) {

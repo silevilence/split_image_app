@@ -4,7 +4,7 @@
 > **目标平台:** Windows Desktop  
 > **技术栈:** Flutter + Provider + fluent_ui  
 > **创建日期:** 2025-11-28  
-> **最后更新:** 2025-11-28
+> **最后更新:** 2025-11-29
 
 ---
 
@@ -27,6 +27,37 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 ---
 
 ## ✅ 已完成 (Completed)
+
+### Feature: 图片边缘留白控制 (Margins / Effective Area)
+**完成日期:** 2025-11-29
+
+#### 📝 Description
+允许用户指定图片四周的留白区域，排除不参与网格计算的边缘白边。
+
+#### ✅ Checklist
+- [x] Margins 数据模型 (Top, Bottom, Left, Right)
+- [x] 侧边栏 "Margins" 输入框 UI
+- [x] `Effective Rect` 计算逻辑
+- [x] 网格线生成限制在 Effective Rect 范围内
+- [x] 切片预览/导出仅包含有效区域
+- [x] 画布上可视化显示 Margins 边界 (半透明遮罩)
+- [x] 右键菜单快速设置边距（点击位置直接作为边距值）
+
+#### 📁 产出文件
+```
+lib/
+├── models/
+│   └── margins.dart
+├── widgets/
+│   └── margins_input.dart
+├── providers/
+│   └── editor_provider.dart (更新)
+└── widgets/
+    ├── grid_painter.dart (更新)
+    └── editor_canvas.dart (更新)
+```
+
+---
 
 ### Feature: 设置系统与数据持久化 (Settings & Persistence)
 **完成日期:** 2025-11-28
@@ -56,9 +87,157 @@ lib/
 
 ## 📅 计划开发 (Planned)
 
+### Refactor: 🏗️ Grid Algorithm Architecture (策略模式重构)
+**优先级:** 🔴 高  
+**预计工时:** 2-3h  
+**依赖:** 无  
+**被依赖:** 智能网格初始化算法 (Smart Grid Algorithm)
+
+#### 📝 Description
+在实现具体算法之前，先搭建可扩展的算法架构。使用策略模式 (Strategy Pattern) 解耦算法逻辑与 UI 代码，使未来新增算法的工作量最小化。
+
+#### 🎯 Design Goals
+- **解耦:** 算法逻辑与 UI 完全分离
+- **可扩展:** 新增算法仅需 "1 Enum + 1 Switch Case + 1 Class File"
+- **可配置:** 用户可在设置中选择默认算法
+
+#### ✅ Checklist
+- [ ] 定义 `GridGeneratorStrategy` 抽象基类/接口
+- [ ] 定义标准输入参数: `GridGeneratorInput`
+  - [ ] `Rect effectiveRect` - 有效区域
+  - [ ] `int targetRows` - 目标行数
+  - [ ] `int targetCols` - 目标列数
+  - [ ] `Uint8List? pixelData` - 像素数据 (可选，供智能算法使用)
+  - [ ] `int imageWidth`, `int imageHeight` - 图片尺寸
+- [ ] 定义标准输出: `GridGeneratorResult`
+  - [ ] `List<double> horizontalLines` - 水平线相对位置
+  - [ ] `List<double> verticalLines` - 垂直线相对位置
+- [ ] 创建 `GridAlgorithmType` 枚举
+  - [ ] `fixedEvenSplit` - 均匀分割 (当前默认)
+  - [ ] `projectionProfile` - 投影分析法 (预留)
+  - [ ] `edgeDetection` - 边缘检测 (预留)
+- [ ] 实现 `GridStrategyFactory` 工厂类
+- [ ] 迁移现有均匀分割逻辑到 `FixedEvenSplitStrategy`
+- [ ] 更新 `EditorProvider` 使用策略模式
+- [ ] 在 `app_config.dart` 添加 `defaultAlgorithm` 配置项
+- [ ] 在 `config.toml` 添加 `[grid]` 或 `[algorithm]` 配置节
+- [ ] 在设置页面添加 "Default Algorithm" 下拉菜单
+
+#### 🔧 Technical Considerations
+
+**Strategy Pattern 结构:**
+```dart
+/// 算法类型枚举
+enum GridAlgorithmType {
+  fixedEvenSplit,      // 均匀分割
+  projectionProfile,   // 投影分析
+  edgeDetection,       // 边缘检测 (未来)
+}
+
+/// 算法输入参数
+class GridGeneratorInput {
+  final Rect effectiveRect;
+  final int targetRows;
+  final int targetCols;
+  final int imageWidth;
+  final int imageHeight;
+  final Uint8List? pixelData; // 仅智能算法需要
+}
+
+/// 算法输出结果
+class GridGeneratorResult {
+  final List<double> horizontalLines;
+  final List<double> verticalLines;
+  final String? message; // 可选的提示信息
+}
+
+/// 策略抽象基类
+abstract class GridGeneratorStrategy {
+  GridAlgorithmType get type;
+  String get displayName;
+  String get description;
+  
+  /// 是否需要像素数据 (智能算法需要，均匀分割不需要)
+  bool get requiresPixelData => false;
+  
+  /// 生成网格线 (可在 Isolate 中运行)
+  Future<GridGeneratorResult> generate(GridGeneratorInput input);
+}
+
+/// 工厂类
+class GridStrategyFactory {
+  static GridGeneratorStrategy create(GridAlgorithmType type) {
+    switch (type) {
+      case GridAlgorithmType.fixedEvenSplit:
+        return FixedEvenSplitStrategy();
+      case GridAlgorithmType.projectionProfile:
+        return ProjectionProfileStrategy(); // 后续实现
+      case GridAlgorithmType.edgeDetection:
+        throw UnimplementedError('Edge detection not yet implemented');
+    }
+  }
+  
+  static List<GridGeneratorStrategy> getAllStrategies() {
+    return GridAlgorithmType.values
+        .where((t) => t != GridAlgorithmType.edgeDetection) // 排除未实现的
+        .map((t) => create(t))
+        .toList();
+  }
+}
+```
+
+**config.toml 配置结构:**
+```toml
+[algorithm]
+default = "fixedEvenSplit"  # fixedEvenSplit | projectionProfile
+
+# 投影算法参数 (可选)
+[algorithm.projectionProfile]
+threshold = 0.3
+minValleyWidth = 5
+```
+
+**EditorProvider 集成:**
+```dart
+class EditorProvider {
+  GridAlgorithmType _algorithmType = GridAlgorithmType.fixedEvenSplit;
+  
+  Future<void> regenerateGrid() async {
+    final strategy = GridStrategyFactory.create(_algorithmType);
+    final input = GridGeneratorInput(...);
+    final result = await strategy.generate(input);
+    _horizontalLines = result.horizontalLines;
+    _verticalLines = result.verticalLines;
+    notifyListeners();
+  }
+}
+```
+
+#### 📁 产出文件
+```
+lib/
+├── models/
+│   ├── grid_algorithm_type.dart      # 算法类型枚举
+│   ├── grid_generator_input.dart     # 输入参数模型
+│   └── grid_generator_result.dart    # 输出结果模型
+├── strategies/
+│   ├── grid_generator_strategy.dart  # 抽象基类
+│   ├── grid_strategy_factory.dart    # 工厂类
+│   └── fixed_even_split_strategy.dart # 均匀分割实现
+├── services/
+│   └── config_service.dart           # 更新: 添加算法配置
+├── models/
+│   └── app_config.dart               # 更新: 添加 AlgorithmConfig
+└── widgets/
+    └── settings_dialog.dart          # 更新: 添加算法选择 UI
+```
+
+---
+
 ### Feature: 🧠 智能网格初始化算法 (Smart Grid Algorithm)
 **优先级:** 🔴 高  
-**预计工时:** 4-6h
+**预计工时:** 4-6h  
+**前置依赖:** Grid Algorithm Architecture (策略模式重构) ⬆️
 
 #### 📝 Description
 基于投影分析法 (Projection Profile) 自动识别贴纸缝隙，减少人工调整网格线的工作量。
@@ -100,51 +279,6 @@ lib/
 │   └── smart_grid_detector.dart
 └── widgets/
     └── smart_detect_button.dart (可选)
-```
-
----
-
-### Feature: 图片边缘留白控制 (Margins / Effective Area)
-**优先级:** 🟡 中  
-**预计工时:** 2-3h
-
-#### 📝 Description
-允许用户指定图片四周的留白区域，排除不参与网格计算的边缘白边。
-
-#### ✅ Checklist
-- [ ] Margins 数据模型 (Top, Bottom, Left, Right)
-- [ ] 侧边栏 "Margins" 输入框 UI
-- [ ] `Effective Rect` 计算逻辑
-- [ ] 网格线生成限制在 Effective Rect 范围内
-- [ ] 智能算法仅分析 Effective Rect 区域
-- [ ] 画布上可视化显示 Margins 边界 (半透明遮罩)
-- [ ] Margins 预设值 (可选)
-
-#### 🔧 Technical Considerations
-- **Problem:** 排除贴纸四周不参与计算的白边
-- **Effective Rect 定义:**
-  ```dart
-  Rect effectiveRect = Rect.fromLTRB(
-    margins.left,
-    margins.top,
-    imageWidth - margins.right,
-    imageHeight - margins.bottom,
-  );
-  ```
-- **网格线相对位置调整:**
-  - 相对位置 0.0 对应 `effectiveRect.left` 而非图片左边缘
-  - 相对位置 1.0 对应 `effectiveRect.right` 而非图片右边缘
-- **可视化:** 在 Effective Rect 外的区域绘制半透明灰色遮罩
-
-#### 📁 产出文件
-```
-lib/
-├── models/
-│   └── margins.dart
-├── widgets/
-│   └── margins_input.dart
-└── providers/
-    └── editor_provider.dart (更新)
 ```
 
 ---
@@ -199,12 +333,13 @@ lib/
 
 ## 🎯 新功能里程碑概览
 
-| Feature | 优先级 | 预计工时 | 状态 |
-|---------|--------|---------|------|
-| 设置系统与数据持久化 | 🔴 高 | 3-4h | ✅ 已完成 |
-| 智能网格初始化算法 | 🔴 高 | 4-6h | 📅 计划中 |
-| 图片边缘留白控制 | 🟡 中 | 2-3h | 📅 计划中 |
-| 快捷键与模式切换增强 | 🟡 中 | 2-3h | 📅 计划中 |
+| Feature | 优先级 | 预计工时 | 依赖 | 状态 |
+|---------|--------|---------|------|------|
+| 设置系统与数据持久化 | 🔴 高 | 3-4h | - | ✅ 已完成 |
+| 图片边缘留白控制 | 🟡 中 | 2-3h | - | ✅ 已完成 |
+| Grid Algorithm Architecture | 🔴 高 | 2-3h | - | 📅 计划中 |
+| 智能网格初始化算法 | 🔴 高 | 4-6h | Architecture | 📅 计划中 |
+| 快捷键与模式切换增强 | 🟡 中 | 2-3h | - | 📅 计划中 |
 
 ---
 
@@ -449,6 +584,7 @@ dependencies:
 - **2025-11-28:** Phase 4 完成 - 预览系统、切片生成、选择功能（全选/全不选/反选）
 - **2025-11-28:** Phase 5 完成 - 导出功能、进度对话框、Isolate 批量处理
 - **2025-11-28:** 重构 ROADMAP 为看板模式，添加新功能规划 (Settings, Smart Grid, Margins, Shortcuts)
+- **2025-11-29:** 添加 Grid Algorithm Architecture 重构任务，作为智能算法的前置架构
 
 ---
 

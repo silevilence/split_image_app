@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' show PopupMenuEntry, PopupMenuItem, Popup
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../models/margins.dart';
 import '../providers/editor_provider.dart';
 import '../services/config_service.dart';
 import '../utils/coordinate_utils.dart';
@@ -245,6 +246,10 @@ class _EditorCanvasState extends State<EditorCanvas> {
         position.dx / renderSize.width,
         position.dy / renderSize.height,
       );
+
+      // 计算点击位置对应的实际像素坐标
+      final pixelX = (relativePos.dx * provider.imageSize!.width).round();
+      final pixelY = (relativePos.dy * provider.imageSize!.height).round();
       
       menuItems.addAll([
         MenuFlyoutItem(
@@ -261,6 +266,91 @@ class _EditorCanvasState extends State<EditorCanvas> {
             provider.addVerticalLine(relativePos.dx);
           },
         ),
+        const MenuFlyoutSeparator(),
+        // 边距设置子菜单
+        MenuFlyoutItem(
+          leading: const Icon(FluentIcons.padding_left, size: 14),
+          text: Text('设为左边距 ($pixelX px)'),
+          onPressed: () {
+            provider.setMarginLeft(pixelX.toDouble());
+            displayInfoBar(
+              context,
+              builder: (ctx, close) => InfoBar(
+                title: const Text('已设置左边距'),
+                content: Text('$pixelX px'),
+                severity: InfoBarSeverity.success,
+              ),
+              duration: const Duration(seconds: 1),
+            );
+          },
+        ),
+        MenuFlyoutItem(
+          leading: const Icon(FluentIcons.padding_right, size: 14),
+          text: Text('设为右边距 (${(provider.imageSize!.width - pixelX).round()} px)'),
+          onPressed: () {
+            provider.setMarginRight(provider.imageSize!.width - pixelX);
+            displayInfoBar(
+              context,
+              builder: (ctx, close) => InfoBar(
+                title: const Text('已设置右边距'),
+                content: Text('${(provider.imageSize!.width - pixelX).round()} px'),
+                severity: InfoBarSeverity.success,
+              ),
+              duration: const Duration(seconds: 1),
+            );
+          },
+        ),
+        MenuFlyoutItem(
+          leading: const Icon(FluentIcons.padding_top, size: 14),
+          text: Text('设为上边距 ($pixelY px)'),
+          onPressed: () {
+            provider.setMarginTop(pixelY.toDouble());
+            displayInfoBar(
+              context,
+              builder: (ctx, close) => InfoBar(
+                title: const Text('已设置上边距'),
+                content: Text('$pixelY px'),
+                severity: InfoBarSeverity.success,
+              ),
+              duration: const Duration(seconds: 1),
+            );
+          },
+        ),
+        MenuFlyoutItem(
+          leading: const Icon(FluentIcons.padding_bottom, size: 14),
+          text: Text('设为下边距 (${(provider.imageSize!.height - pixelY).round()} px)'),
+          onPressed: () {
+            provider.setMarginBottom(provider.imageSize!.height - pixelY);
+            displayInfoBar(
+              context,
+              builder: (ctx, close) => InfoBar(
+                title: const Text('已设置下边距'),
+                content: Text('${(provider.imageSize!.height - pixelY).round()} px'),
+                severity: InfoBarSeverity.success,
+              ),
+              duration: const Duration(seconds: 1),
+            );
+          },
+        ),
+        // 重置边距选项
+        if (!provider.margins.isZero) ...[
+          const MenuFlyoutSeparator(),
+          MenuFlyoutItem(
+            leading: const Icon(FluentIcons.clear, size: 14),
+            text: const Text('重置所有边距'),
+            onPressed: () {
+              provider.resetMargins();
+              displayInfoBar(
+                context,
+                builder: (ctx, close) => const InfoBar(
+                  title: Text('已重置边距'),
+                  severity: InfoBarSeverity.success,
+                ),
+                duration: const Duration(seconds: 1),
+              );
+            },
+          ),
+        ],
       ]);
     }
     
@@ -530,6 +620,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
                                   painter: GridPainter(
                                     horizontalLines: provider.horizontalLines,
                                     verticalLines: provider.verticalLines,
+                                    imageSize: provider.imageSize!,
+                                    margins: provider.margins,
                                     hoveredHorizontalIndex: _hoveredHorizontalIndex,
                                     hoveredVerticalIndex: _hoveredVerticalIndex,
                                     selectedHorizontalIndex: provider.selectedLineIsHorizontal == true

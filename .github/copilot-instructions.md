@@ -6,7 +6,7 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集按网格�
 ## 架构概要
 
 ### 状态管理 (Provider 双核心)
-- **`EditorProvider`** - 管理图片、网格线、编辑模式、撤销/重做
+- **`EditorProvider`** - 管理图片、网格线、边距、编辑模式、撤销/重做
 - **`PreviewProvider`** - 管理切片预览生成、选择状态、导出进度
 
 两个 Provider 在 `main.dart` 的 `MultiProvider` 中注册，通过 `context.read/watch` 访问。
@@ -34,8 +34,13 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集按网格�
          → 智能适配 _applySmartGridFit() 交换行列
          → 生成网格线 _generateGridLines()
 
-预览生成 → PreviewProvider.generatePreview()
+边距设置 → EditorProvider.setMargins() / setMarginTop/Bottom/Left/Right()
+         → 计算 effectiveRect (有效区域)
+         → 重新生成网格线 (基于有效区域)
+
+预览生成 → PreviewProvider.generatePreview(margins: ...)
          → 内存裁剪 (dart:ui Canvas)
+         → 仅切割有效区域内的图片
          → 缩略图列表
 
 导出     → ImageProcessor.exportSlices() (Isolate)
@@ -81,8 +86,10 @@ await ConfigService.instance.setToggleModeShortcut('V');
 
 | 文件 | 职责 |
 |------|------|
-| `providers/editor_provider.dart` | 核心状态：图片、网格线、选中线、撤销栈 |
-| `widgets/editor_canvas.dart` | 画布交互：拖拽、悬停、右键菜单、快捷键 |
+| `providers/editor_provider.dart` | 核心状态：图片、网格线、边距、选中线、撤销栈 |
+| `widgets/editor_canvas.dart` | 画布交互：拖拽、悬停、右键菜单、快捷键、边距设置 |
+| `models/margins.dart` | 边距数据模型：ImageMargins、effectiveRect 计算 |
+| `widgets/margins_input.dart` | 边距输入 UI 组件 |
 | `utils/coordinate_utils.dart` | 坐标转换：屏幕↔图片、线条检测 |
 | `utils/image_processor.dart` | Isolate 导出任务 |
 | `services/config_service.dart` | 配置管理：TOML 读写、快捷键、导出设置 |

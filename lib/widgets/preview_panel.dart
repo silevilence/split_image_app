@@ -10,6 +10,7 @@ import '../providers/preview_provider.dart';
 import '../services/config_service.dart';
 import '../utils/image_processor.dart';
 import 'export_dialog.dart';
+import 'margins_input.dart';
 import 'preview_gallery.dart';
 import 'progress_dialog.dart';
 
@@ -236,6 +237,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
                 const SizedBox(height: 12),
                 // 网格设置区（紧凑版）
                 _buildCompactGridSettings(theme, provider),
+                const SizedBox(height: 12),
+                // 边距设置区
+                const MarginsInput(),
                 const SizedBox(height: 12),
                 // 编辑操作区（紧凑版）
                 _buildCompactEditActions(theme, provider),
@@ -545,6 +549,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
       horizontalLines: editorProvider.horizontalLines,
       verticalLines: editorProvider.verticalLines,
       imageSize: editorProvider.imageSize!,
+      margins: editorProvider.margins,
     );
   }
 
