@@ -228,6 +228,21 @@ flutter build windows     # Release 构建
   - 边缘检测: 先检测边缘，再对边缘强度进行投影
 - **适用场景:** 贴纸之间有明显边界但背景不均匀的情况
 
+### Resizable Split View (2025-11-30)
+- **实现文件:** `lib/widgets/resizable_split_view.dart`
+- **功能:** 可拖拽调整大小的垂直分割视图
+- **配置持久化:**
+  - `PanelConfig` 模型存储 `settingsSplitRatio` (0.0-1.0)
+  - `ConfigService.setSettingsSplitRatio()` 保存到 TOML
+- **约束:**
+  - 最小高度常量: `PanelConfig.minSettingsHeight` / `PanelConfig.minPreviewHeight`
+  - 拖拽时自动 clamp 到有效范围
+- **集成方式:** `PreviewPanel` 使用 `ResizableSplitView` 包装设置区和预览区
+- **交互细节:**
+  - 分隔条鼠标悬停显示 `resizeRow` 光标
+  - 拖拽时分隔条高亮显示
+  - 拖拽结束时触发 `onRatioChanged` 回调保存配置
+
 ---
 
 ## 🐙 Git Version Control Protocol

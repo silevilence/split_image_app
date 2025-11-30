@@ -61,8 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             flex: 7,
             child: DropTarget(
-              onDragEntered: (_) => setState(() => _isDraggingOverCanvas = true),
-              onDragExited: (_) => setState(() => _isDraggingOverCanvas = false),
+              onDragEntered: (_) =>
+                  setState(() => _isDraggingOverCanvas = true),
+              onDragExited: (_) =>
+                  setState(() => _isDraggingOverCanvas = false),
               onDragDone: (details) {
                 setState(() => _isDraggingOverCanvas = false);
                 _handleDroppedFiles(details.files.map((f) => f.path).toList());
@@ -80,10 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // 可拖拽的分隔条
           _buildResizeHandle(theme),
           // 右侧: 预览与控制面板 (可调整宽度)
-          SizedBox(
-            width: _panelWidth,
-            child: const PreviewPanel(),
-          ),
+          SizedBox(width: _panelWidth, child: const PreviewPanel()),
         ],
       ),
     );
@@ -98,14 +97,16 @@ class _HomeScreenState extends State<HomeScreen> {
         onHorizontalDragEnd: (_) => setState(() => _isResizing = false),
         onHorizontalDragUpdate: (details) {
           setState(() {
-            _panelWidth = (_panelWidth - details.delta.dx)
-                .clamp(_minPanelWidth, _maxPanelWidth);
+            _panelWidth = (_panelWidth - details.delta.dx).clamp(
+              _minPanelWidth,
+              _maxPanelWidth,
+            );
           });
         },
         child: Container(
           width: 6,
-          color: _isResizing 
-              ? theme.accentColor.withOpacity(0.3)
+          color: _isResizing
+              ? theme.accentColor.withValues(alpha: 0.3)
               : Colors.transparent,
           child: Center(
             child: Container(
@@ -139,10 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         if (fileName != null) ...[
           const SizedBox(width: 12),
-          Text(
-            '- $fileName',
-            style: theme.typography.caption,
-          ),
+          Text('- $fileName', style: theme.typography.caption),
         ],
       ],
     );

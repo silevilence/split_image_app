@@ -21,6 +21,9 @@ class _MarginsInputState extends State<MarginsInput> {
 
   bool _isExpanded = false;
 
+  // 记录上次同步的边距值，用于检测 Provider 变化
+  ImageMargins? _lastSyncedMargins;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +85,21 @@ class _MarginsInputState extends State<MarginsInput> {
     final provider = context.watch<EditorProvider>();
     final hasImage = provider.imageFile != null;
     final margins = provider.margins;
+
+    // 检测 Provider 中的边距是否发生变化（由外部修改，如智能检测）
+    // 如果变化了，同步到输入框
+    if (_lastSyncedMargins != margins) {
+      _lastSyncedMargins = margins;
+      // 使用 addPostFrameCallback 避免在 build 中直接修改状态
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _topController.text = margins.top.toStringAsFixed(0);
+          _bottomController.text = margins.bottom.toStringAsFixed(0);
+          _leftController.text = margins.left.toStringAsFixed(0);
+          _rightController.text = margins.right.toStringAsFixed(0);
+        }
+      });
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

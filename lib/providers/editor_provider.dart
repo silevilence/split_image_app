@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -9,7 +8,6 @@ import '../models/editor_history.dart';
 import '../models/grid_algorithm_type.dart';
 import '../models/grid_config.dart';
 import '../models/grid_generator_input.dart';
-import '../models/grid_generator_result.dart';
 import '../models/margins.dart';
 import '../services/config_service.dart';
 import '../strategies/grid_strategy_factory.dart';

@@ -215,4 +215,16 @@ class ConfigService extends ChangeNotifier {
 
   /// 获取配置文件路径（用于调试）
   String? get configFilePath => _configFilePath;
+
+  // ==================== 面板配置 ====================
+
+  /// 获取设置区分割比例
+  double get settingsSplitRatio => _config.panel.settingsSplitRatio;
+
+  /// 更新设置区分割比例
+  Future<void> setSettingsSplitRatio(double ratio) async {
+    _config.panel.settingsSplitRatio = ratio.clamp(0.1, 0.9);
+    await _saveConfig();
+    // 不需要 notifyListeners()，因为面板比例变化是实时拖拽的
+  }
 }

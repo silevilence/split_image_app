@@ -134,6 +134,33 @@ class GridConfig {
   }
 }
 
+/// 面板布局配置
+class PanelConfig {
+  /// 设置区高度比例 (0.0-1.0)，表示设置区占整个侧边栏的比例
+  double settingsSplitRatio;
+
+  /// 设置区最小高度
+  static const double minSettingsHeight = 200;
+
+  /// 预览区最小高度
+  static const double minPreviewHeight = 200;
+
+  PanelConfig({this.settingsSplitRatio = 0.4});
+
+  /// 从 Map 创建配置
+  factory PanelConfig.fromMap(Map<String, dynamic> map) {
+    return PanelConfig(
+      settingsSplitRatio:
+          (map['settings_split_ratio'] as num?)?.toDouble() ?? 0.4,
+    );
+  }
+
+  /// 转换为 Map
+  Map<String, dynamic> toMap() {
+    return {'settings_split_ratio': settingsSplitRatio};
+  }
+}
+
 /// 应用全局配置
 class AppConfig {
   /// 导出配置
@@ -145,13 +172,18 @@ class AppConfig {
   /// 网格配置
   GridConfig grid;
 
+  /// 面板布局配置
+  PanelConfig panel;
+
   AppConfig({
     ExportConfig? export,
     ShortcutsConfig? shortcuts,
     GridConfig? grid,
+    PanelConfig? panel,
   }) : export = export ?? ExportConfig(),
        shortcuts = shortcuts ?? ShortcutsConfig(),
-       grid = grid ?? GridConfig();
+       grid = grid ?? GridConfig(),
+       panel = panel ?? PanelConfig();
 
   /// 创建默认配置
   factory AppConfig.defaults() => AppConfig();
@@ -172,6 +204,9 @@ class AppConfig {
       grid: map['grid'] != null
           ? GridConfig.fromMap(Map<String, dynamic>.from(map['grid'] as Map))
           : null,
+      panel: map['panel'] != null
+          ? PanelConfig.fromMap(Map<String, dynamic>.from(map['panel'] as Map))
+          : null,
     );
   }
 
@@ -181,6 +216,7 @@ class AppConfig {
       'export': export.toMap(),
       'shortcuts': shortcuts.toMap(),
       'grid': grid.toMap(),
+      'panel': panel.toMap(),
     };
   }
 }

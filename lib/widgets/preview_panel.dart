@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_config.dart';
 import '../providers/editor_provider.dart';
 import '../providers/preview_provider.dart';
 import '../services/config_service.dart';
@@ -14,6 +13,7 @@ import 'export_dialog.dart';
 import 'margins_input.dart';
 import 'preview_gallery.dart';
 import 'progress_dialog.dart';
+import 'resizable_split_view.dart';
 
 /// 右侧预览与控制面板
 class PreviewPanel extends StatefulWidget {
@@ -27,20 +27,22 @@ class _PreviewPanelState extends State<PreviewPanel> {
   late final TextEditingController _rowsController;
   late final TextEditingController _colsController;
   bool _isDragging = false;
-  bool _isSettingsExpanded = true; // 设置区是否展开
   bool _isPickingFile = false; // 防止重复打开文件选择器
+  late double _splitRatio; // 设置区/预览区分割比例
 
   @override
   void initState() {
     super.initState();
     // 从配置读取默认行列数作为输入框初始值
-    final config = ConfigService.instance.config.grid;
+    final config = ConfigService.instance.config;
     _rowsController = TextEditingController(
-      text: config.defaultRows.toString(),
+      text: config.grid.defaultRows.toString(),
     );
     _colsController = TextEditingController(
-      text: config.defaultCols.toString(),
+      text: config.grid.defaultCols.toString(),
     );
+    // 从配置读取分割比例
+    _splitRatio = config.panel.settingsSplitRatio;
 
     // 监听 Provider 变化更新输入框（用于智能交换后同步）
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,16 +121,9 @@ class _PreviewPanelState extends State<PreviewPanel> {
     _colsController.text = provider.gridConfig.cols.toString();
   }
 
-  /// 应用行列设置
-  void _applyGridSettings() {
-    final provider = context.read<EditorProvider>();
-    final rows = int.tryParse(_rowsController.text) ?? 4;
-    final cols = int.tryParse(_colsController.text) ?? 4;
-
-    provider.setRows(rows.clamp(1, 50));
-    provider.setCols(cols.clamp(1, 50));
-
-    _updateTextFields();
+  /// 保存分割比例到配置
+  void _saveSplitRatio(double ratio) {
+    ConfigService.instance.setSettingsSplitRatio(ratio);
   }
 
   @override
@@ -180,19 +175,15 @@ class _PreviewPanelState extends State<PreviewPanel> {
           children: [
             // 标题栏
             _buildHeader(theme),
-            // 上半部分：可折叠的设置区
-            _buildCollapsibleSettings(theme, provider),
-            // 分隔线
-            Divider(
-              style: DividerThemeData(
-                horizontalMargin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-            ),
-            // 下半部分：预览区（主要空间）
+            // 可调整大小的分割视图
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _buildPreviewSection(theme, provider),
+              child: ResizableSplitView(
+                initialRatio: _splitRatio,
+                minTopHeight: PanelConfig.minSettingsHeight,
+                minBottomHeight: PanelConfig.minPreviewHeight,
+                onRatioChanged: _saveSplitRatio,
+                topChild: _buildSettingsSection(theme, provider),
+                bottomChild: _buildPreviewSection(theme, provider),
               ),
             ),
           ],
@@ -214,64 +205,35 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
-  /// 构建可折叠的设置区
-  Widget _buildCollapsibleSettings(
-    FluentThemeData theme,
-    EditorProvider provider,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 折叠标题栏
-        GestureDetector(
-          onTap: () =>
-              setState(() => _isSettingsExpanded = !_isSettingsExpanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.transparent,
-            child: Row(
-              children: [
-                Icon(
-                  _isSettingsExpanded
-                      ? FluentIcons.chevron_down
-                      : FluentIcons.chevron_right,
-                  size: 12,
-                ),
-                const SizedBox(width: 8),
-                Text('设置', style: theme.typography.bodyStrong),
-                const Spacer(),
-                Text(
-                  _isSettingsExpanded ? '点击收起' : '点击展开',
-                  style: theme.typography.caption?.copyWith(
-                    color: theme.resources.textFillColorTertiary,
-                  ),
-                ),
-              ],
-            ),
+  /// 构建设置区（可滚动）
+  Widget _buildSettingsSection(FluentThemeData theme, EditorProvider provider) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 设置区标题
+          Row(
+            children: [
+              Icon(FluentIcons.settings, size: 16, color: theme.accentColor),
+              const SizedBox(width: 8),
+              Text('设置', style: theme.typography.bodyStrong),
+            ],
           ),
-        ),
-        // 展开的内容
-        if (_isSettingsExpanded)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 文件操作区
-                _buildFileSection(theme, provider),
-                const SizedBox(height: 12),
-                // 网格设置区（紧凑版）
-                _buildCompactGridSettings(theme, provider),
-                const SizedBox(height: 12),
-                // 边距设置区
-                const MarginsInput(),
-                const SizedBox(height: 12),
-                // 编辑操作区（紧凑版）
-                _buildCompactEditActions(theme, provider),
-              ],
-            ),
-          ),
-      ],
+          const SizedBox(height: 12),
+          // 文件操作区
+          _buildFileSection(theme, provider),
+          const SizedBox(height: 16),
+          // 网格设置区
+          _buildCompactGridSettings(theme, provider),
+          const SizedBox(height: 16),
+          // 边距设置区
+          const MarginsInput(),
+          const SizedBox(height: 16),
+          // 编辑操作区
+          _buildCompactEditActions(theme, provider),
+        ],
+      ),
     );
   }
 
@@ -418,163 +380,6 @@ class _PreviewPanelState extends State<PreviewPanel> {
     );
   }
 
-  /// 构建网格设置区
-  Widget _buildGridSettingsSection(
-    FluentThemeData theme,
-    EditorProvider provider,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('网格设置', style: theme.typography.bodyStrong),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: InfoLabel(
-                label: '行数',
-                child: NumberBox<int>(
-                  value: int.tryParse(_rowsController.text),
-                  min: 1,
-                  max: 50,
-                  mode: SpinButtonPlacementMode.compact,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _rowsController.text = value.toString();
-                      provider.setRows(value);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: InfoLabel(
-                label: '列数',
-                child: NumberBox<int>(
-                  value: int.tryParse(_colsController.text),
-                  min: 1,
-                  max: 50,
-                  mode: SpinButtonPlacementMode.compact,
-                  onChanged: (value) {
-                    if (value != null) {
-                      _colsController.text = value.toString();
-                      provider.setCols(value);
-                    }
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // 网格信息
-        if (provider.imageSize != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.micaBackgroundColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '每个切片尺寸 (预估)',
-                  style: theme.typography.caption?.copyWith(
-                    color: theme.resources.textFillColorSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${(provider.imageSize!.width / provider.gridConfig.cols).toStringAsFixed(0)} × '
-                  '${(provider.imageSize!.height / provider.gridConfig.rows).toStringAsFixed(0)} px',
-                  style: theme.typography.body,
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// 构建编辑操作区（撤销/重做）
-  Widget _buildEditActionsSection(
-    FluentThemeData theme,
-    EditorProvider provider,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('编辑操作', style: theme.typography.bodyStrong),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Button(
-                onPressed: provider.canUndo
-                    ? () {
-                        provider.undo();
-                        displayInfoBar(
-                          context,
-                          builder: (ctx, close) => const InfoBar(
-                            title: Text('已撤销'),
-                            severity: InfoBarSeverity.info,
-                          ),
-                          duration: const Duration(milliseconds: 800),
-                        );
-                      }
-                    : null,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FluentIcons.undo, size: 14),
-                    SizedBox(width: 6),
-                    Text('撤销'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Button(
-                onPressed: provider.canRedo
-                    ? () {
-                        provider.redo();
-                        displayInfoBar(
-                          context,
-                          builder: (ctx, close) => const InfoBar(
-                            title: Text('已重做'),
-                            severity: InfoBarSeverity.info,
-                          ),
-                          duration: const Duration(milliseconds: 800),
-                        );
-                      }
-                    : null,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FluentIcons.redo, size: 14),
-                    SizedBox(width: 6),
-                    Text('重做'),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // 快捷键提示
-        Text(
-          '快捷键: Ctrl+Z 撤销, Ctrl+Y 重做',
-          style: theme.typography.caption?.copyWith(
-            color: theme.resources.textFillColorTertiary,
-          ),
-        ),
-      ],
-    );
-  }
-
   /// 生成预览
   Future<void> _generatePreview() async {
     final editorProvider = context.read<EditorProvider>();
@@ -670,83 +475,102 @@ class _PreviewPanelState extends State<PreviewPanel> {
     }
   }
 
-  /// 构建预览区
+  /// 构建预览区（可滚动）
   Widget _buildPreviewSection(FluentThemeData theme, EditorProvider provider) {
     final previewProvider = context.watch<PreviewProvider>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.resources.dividerStrokeColorDefault),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('预览与导出', style: theme.typography.bodyStrong),
-            const Spacer(),
-            if (previewProvider.hasPreview)
-              Text(
-                '${previewProvider.selectedCount}/${previewProvider.totalCount} 已选',
-                style: theme.typography.caption?.copyWith(
-                  color: theme.resources.textFillColorSecondary,
+            // 预览区标题
+            Row(
+              children: [
+                Icon(
+                  FluentIcons.grid_view_medium,
+                  size: 16,
+                  color: theme.accentColor,
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // 生成预览按钮
-        FilledButton(
-          onPressed: provider.imageFile != null && !previewProvider.isGenerating
-              ? _generatePreview
-              : null,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (previewProvider.isGenerating)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: ProgressRing(strokeWidth: 2),
+                const SizedBox(width: 8),
+                Text('预览与导出', style: theme.typography.bodyStrong),
+                const Spacer(),
+                if (previewProvider.hasPreview)
+                  Text(
+                    '${previewProvider.selectedCount}/${previewProvider.totalCount} 已选',
+                    style: theme.typography.caption?.copyWith(
+                      color: theme.resources.textFillColorSecondary,
+                    ),
                   ),
-                )
-              else
-                const Icon(FluentIcons.grid_view_medium, size: 16),
-              const SizedBox(width: 8),
-              Text(previewProvider.isGenerating ? '生成中...' : '生成预览'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        // 导出按钮
-        Button(
-          onPressed:
-              previewProvider.hasPreview && previewProvider.selectedCount > 0
-              ? _exportSlices
-              : null,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(FluentIcons.save, size: 16),
-              const SizedBox(width: 8),
-              Text('导出选中 (${previewProvider.selectedCount})'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // 预览画廊
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.micaBackgroundColor,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: theme.resources.dividerStrokeColorDefault,
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 生成预览按钮
+            FilledButton(
+              onPressed:
+                  provider.imageFile != null && !previewProvider.isGenerating
+                  ? _generatePreview
+                  : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (previewProvider.isGenerating)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: ProgressRing(strokeWidth: 2),
+                      ),
+                    )
+                  else
+                    const Icon(FluentIcons.grid_view_medium, size: 16),
+                  const SizedBox(width: 8),
+                  Text(previewProvider.isGenerating ? '生成中...' : '生成预览'),
+                ],
               ),
             ),
-            padding: const EdgeInsets.all(8),
-            child: const PreviewGallery(),
-          ),
+            const SizedBox(height: 8),
+            // 导出按钮
+            Button(
+              onPressed:
+                  previewProvider.hasPreview &&
+                      previewProvider.selectedCount > 0
+                  ? _exportSlices
+                  : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(FluentIcons.save, size: 16),
+                  const SizedBox(width: 8),
+                  Text('导出选中 (${previewProvider.selectedCount})'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 预览画廊
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.micaBackgroundColor,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: theme.resources.dividerStrokeColorDefault,
+                  ),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: const PreviewGallery(),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
