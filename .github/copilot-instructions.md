@@ -227,3 +227,36 @@ flutter build windows     # Release 构建
   - 投影分析: 直接使用像素亮度/Alpha 值投影
   - 边缘检测: 先检测边缘，再对边缘强度进行投影
 - **适用场景:** 贴纸之间有明显边界但背景不均匀的情况
+
+---
+
+## 🐙 Git Version Control Protocol
+
+### 1. 🚦 Explicit Authorization (明确指令)
+- **Trigger Required:** 严禁自动执行 Git 操作。必须等待用户发出明确指令（如"提交代码"、"Push"、"打个Tag"）后方可执行。
+- **Command Mapping:**
+  - 用户说 "提交" / "Commit" -> 执行 `git add .` 和 `git commit`
+  - 用户说 "推送" / "Push" -> 执行 `git push`
+
+### 2. 📝 Commit Message Standard (Emoji-First)
+- **Language:** 描述部分**必须使用中文**
+- **Format:** 必须严格遵循格式：`<emoji> <type>: <description>` (Emoji 在最前方，以保持列表对齐)
+- **Example:** `✨ feat: 增加右键菜单预览功能`
+- **Example:** `🐛 fix: 修复网格分割线偏移问题`
+
+### 3. Allowed Types & Emojis
+| Emoji | Type | Description |
+|-------|------|-------------|
+| ✨ | `feat` | New Feature / 新功能 |
+| 🐛 | `fix` | Bug Fix / 修复 Bug |
+| 📝 | `docs` | Documentation / 文档变更 |
+| 💄 | `style` | UI & Formatting / 格式或 UI 调整 |
+| ♻️ | `refactor` | Refactor / 代码重构 |
+| ✅ | `test` | Tests / 测试相关 |
+| 🔧 | `chore` | Tooling & Config / 构建工具或配置修改 |
+| 👷 | `ci` | CI/CD / 持续集成流程 |
+| 📦 | `build` | Build / 发布版本或打包 |
+
+### 4. 🛡️ Safety Checks
+- 在执行 `git commit` 之前，先运行 `git status` 确认变更范围
+- 在执行 `git push` 之前，如果本地落后于远程，应提示用户是否需要先 `git pull`
