@@ -125,10 +125,10 @@ flutter build windows     # Release 构建
 
 ### 1. 🛡️ Code Verification (Pre-Test)
 - **Mandatory Analysis:** 编写完功能代码后，**必须**先执行 `flutter analyze` 确保无静态错误。
-- **Zero Errors:** 如果发现错误，必须立即自行修正，直到分析通过为止。
+- **Zero Errors:** 如果发现错误，必须立即自行修正，直到分析通过为止。即使只是警告，如果不是由于代码实现所必需的，也应予以修正。
 
 ### 2. 🤖 Automated Self-Testing (Patrol)
-- **Framework:** 必须使用 **patrol** 包编写集成测试代码。
+- **Framework:** 必须使用 **patrol** 包编写集成测试代码。如果需要使用实际图片进行测试时，使用 `refs` 目录下的测试资源。
 - **Structure:** 测试代码必须存放在 `test/` 目录下，并按模块进行分类管理（例如：`test/settings/settings_flow_test.dart`, `test/grid/smart_grid_test.dart`）。
 - **Preservation:** **严禁删除**过往的测试文件。所有的历史测试必须保留。
 - **Execution:**
@@ -137,7 +137,7 @@ flutter build windows     # Release 构建
 - **Loop:** 如果 Patrol 测试失败，必须根据日志自动修复代码，直到测试通过为止。**严禁**在自动化测试失败的情况下通知用户。
 
 ### 3. 📢 User Verification Notification (Delivery)
-仅当 **编译通过 + Patrol 测试通过** 后，向用户发送通知。
+仅当 **编译通过 + Patrol 测试通过** 后，使用 `flutter run -d windows` 打开应用，并向用户发送通知。
 **Format:** 保持简短：
 - **功能点:** [Name]
 - **测试结果:** ✅ Patrol Test Passed ([Test File Name])
@@ -207,3 +207,23 @@ flutter build windows     # Release 构建
 - **编码方式:** 使用 `TomlDocument.fromMap()` 生成 TOML 内容
 - **解码方式:** 使用 `TomlDocument.parse().toMap()` 解析 TOML
 - **配置模型:** `AppConfig.toMap()` / `AppConfig.fromMap()` 双向转换
+
+### Edge Detection Algorithm (2025-11-30)
+- **实现文件:** `lib/strategies/edge_detection_strategy.dart`
+- **算法流程:**
+  1. 灰度转换: 将图片转为灰度图，透明像素视为白色背景
+  2. 高斯模糊 (可选): 3x3 高斯核减少噪声
+  3. Sobel 边缘检测: 使用水平/垂直 Sobel 算子计算梯度幅值
+  4. 边缘密度投影: 计算每行/每列的边缘强度总和
+  5. 波谷检测: 找到边缘密度最低的区域 (贴纸之间的间隙)
+  6. 分割线选择: 根据目标行列数选择最佳分割位置
+- **Sobel 算子:**
+  ```
+  Gx = [-1 0 1]    Gy = [-1 -2 -1]
+       [-2 0 2]         [ 0  0  0]
+       [-1 0 1]         [ 1  2  1]
+  ```
+- **与投影分析的区别:**
+  - 投影分析: 直接使用像素亮度/Alpha 值投影
+  - 边缘检测: 先检测边缘，再对边缘强度进行投影
+- **适用场景:** 贴纸之间有明显边界但背景不均匀的情况

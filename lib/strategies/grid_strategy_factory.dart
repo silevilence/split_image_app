@@ -1,4 +1,5 @@
 import '../models/grid_algorithm_type.dart';
+import 'edge_detection_strategy.dart';
 import 'fixed_even_split_strategy.dart';
 import 'grid_generator_strategy.dart';
 import 'projection_profile_strategy.dart';
@@ -22,7 +23,7 @@ class GridStrategyFactory {
       case GridAlgorithmType.projectionProfile:
         return ProjectionProfileStrategy();
       case GridAlgorithmType.edgeDetection:
-        throw UnimplementedError('边缘检测算法尚未实现');
+        return EdgeDetectionStrategy();
     }
   }
 

@@ -20,7 +20,7 @@ extension GridAlgorithmTypeExtension on GridAlgorithmType {
       case GridAlgorithmType.projectionProfile:
         return '投影分析法';
       case GridAlgorithmType.edgeDetection:
-        return '边缘检测 (暂未实现)';
+        return '边缘检测';
     }
   }
 
@@ -32,7 +32,7 @@ extension GridAlgorithmTypeExtension on GridAlgorithmType {
       case GridAlgorithmType.projectionProfile:
         return '基于投影分析自动检测贴纸间隙位置';
       case GridAlgorithmType.edgeDetection:
-        return '基于边缘检测算法识别贴纸边界 (暂未实现)';
+        return '基于 Sobel 边缘检测算法识别贴纸边界';
     }
   }
 
@@ -44,7 +44,7 @@ extension GridAlgorithmTypeExtension on GridAlgorithmType {
       case GridAlgorithmType.projectionProfile:
         return true;
       case GridAlgorithmType.edgeDetection:
-        return false; // 待实现
+        return true;
     }
   }
 

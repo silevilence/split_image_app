@@ -28,6 +28,40 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 ## ✅ 已完成 (Completed)
 
+### Feature: 🔍 边缘检测算法 (Edge Detection)
+**完成日期:** 2025-11-30
+
+#### 📝 Description
+基于 Sobel 边缘检测算法自动识别贴纸边界，通过检测图片中边缘密度最低的区域作为分割线位置。
+
+#### ✅ Checklist
+- [x] 实现 `EdgeDetectionStrategy` 策略类
+- [x] 灰度图转换 (考虑 Alpha 通道)
+- [x] 高斯模糊预处理 (可选)
+- [x] Sobel 算子边缘检测
+- [x] 边缘密度投影计算
+- [x] 波谷检测 (边缘密度低的区域)
+- [x] 边距建议功能
+- [x] 更新 `GridAlgorithmType` 枚举
+- [x] 更新 `GridStrategyFactory` 工厂类
+- [x] 单元测试
+
+#### 📁 产出文件
+```
+lib/
+├── strategies/
+│   └── edge_detection_strategy.dart  # 边缘检测算法实现
+├── models/
+│   └── grid_algorithm_type.dart      # 更新: isImplemented = true
+└── strategies/
+    └── grid_strategy_factory.dart    # 更新: 添加 edgeDetection case
+test/
+└── strategies/
+    └── edge_detection_strategy_test.dart  # 单元测试
+```
+
+---
+
 ### Refactor: 🏗️ Grid Algorithm Architecture (策略模式重构)
 **完成日期:** 2025-11-29
 
