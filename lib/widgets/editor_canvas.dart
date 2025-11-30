@@ -433,7 +433,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
     final theme = FluentTheme.of(context);
     showMenu<String>(
       context: context,
-      color: theme.menuColor.withOpacity(1.0),
+      color: theme.menuColor.withValues(alpha: 1.0),
       position: RelativeRect.fromLTRB(
         globalPosition.dx,
         globalPosition.dy,

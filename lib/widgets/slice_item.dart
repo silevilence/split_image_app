@@ -76,7 +76,7 @@ class _SliceItemState extends State<SliceItem> {
       height: 64,
       decoration: BoxDecoration(
         color: widget.isSelected
-            ? theme.accentColor.withOpacity(0.1)
+            ? theme.accentColor.withValues(alpha: 0.1)
             : theme.cardColor,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(

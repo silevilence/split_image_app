@@ -278,7 +278,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                 displayInfoBar(
                   context,
                   builder: (context, close) => InfoBar(
-                    title: Text('${value.displayName}'),
+                    title: Text(value.displayName),
                     content: const Text('该算法正在开发中，敬请期待！'),
                     severity: InfoBarSeverity.warning,
                     onClose: close,

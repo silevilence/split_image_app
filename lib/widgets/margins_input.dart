@@ -140,7 +140,7 @@ class _MarginsInputState extends State<MarginsInput> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.accentColor.withOpacity(0.1),
+                      color: theme.accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -295,7 +295,7 @@ class _MarginsInputState extends State<MarginsInput> {
                 height: 40,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
-                  color: theme.accentColor.withOpacity(0.1),
+                  color: theme.accentColor.withValues(alpha: 0.1),
                   border: Border.all(color: theme.accentColor),
                   borderRadius: BorderRadius.circular(4),
                 ),

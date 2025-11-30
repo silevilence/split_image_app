@@ -1,7 +1,7 @@
+import 'margins.dart';
+
 /// 编辑器历史记录系统
 /// 用于支持撤销/重做功能
-
-import 'margins.dart';
 
 /// 编辑器状态快照（包含网格线和边距）
 class EditorSnapshot {
@@ -19,10 +19,9 @@ class EditorSnapshot {
   EditorSnapshot.from({
     required List<double> horizontalLines,
     required List<double> verticalLines,
-    required ImageMargins margins,
+    required this.margins,
   }) : horizontalLines = List<double>.from(horizontalLines),
-       verticalLines = List<double>.from(verticalLines),
-       margins = margins;
+       verticalLines = List<double>.from(verticalLines);
 
   @override
   bool operator ==(Object other) {

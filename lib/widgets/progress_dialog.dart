@@ -82,8 +82,6 @@ class _ProgressDialogState extends State<ProgressDialog> {
 
   void _openOutputDir() async {
     // 使用 Windows 资源管理器打开文件夹
-    final uri = Uri.directory(widget.outputDir);
-    // 使用 Process.run 打开文件夹
     await Process.run('explorer', [widget.outputDir]);
   }
 
