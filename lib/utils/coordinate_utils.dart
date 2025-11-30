@@ -3,26 +3,23 @@ import 'package:flutter/material.dart';
 /// 坐标转换工具类
 class CoordinateUtils {
   /// 将屏幕坐标转换为图片坐标
-  /// 
+  ///
   /// [screenPosition] 屏幕上的点击位置
   /// [transformMatrix] InteractiveViewer 的变换矩阵
-  /// 
+  ///
   /// 返回相对于图片左上角的坐标
-  static Offset screenToImage(
-    Offset screenPosition,
-    Matrix4 transformMatrix,
-  ) {
+  static Offset screenToImage(Offset screenPosition, Matrix4 transformMatrix) {
     final Matrix4 inverseMatrix = Matrix4.inverted(transformMatrix);
     return MatrixUtils.transformPoint(inverseMatrix, screenPosition);
   }
 
   /// 检测点是否在线附近
-  /// 
+  ///
   /// [point] 要检测的点
   /// [linePosition] 线的位置
   /// [isHorizontal] 是否是水平线
   /// [threshold] 检测阈值（像素）
-  /// 
+  ///
   /// 返回 true 如果点在线附近
   static bool isNearLine(
     Offset point,
@@ -45,11 +42,11 @@ class CoordinateUtils {
   }
 
   /// 检测新位置是否会与其他线交叉
-  /// 
+  ///
   /// [newPosition] 新的位置
   /// [otherLines] 其他线的位置列表
   /// [minSpacing] 最小间距（像素）
-  /// 
+  ///
   /// 返回调整后的位置（如果会交叉则返回最近的有效位置）
   static double avoidCrossing(
     double newPosition,

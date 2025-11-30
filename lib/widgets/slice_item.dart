@@ -98,42 +98,42 @@ class _SliceItemState extends State<SliceItem> {
                 widget.onSelectionToggle?.call(!widget.isSelected);
               },
               child: Row(
-              children: [
-                // 勾选框
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: IgnorePointer(
-                    child: Checkbox(
-                      checked: widget.isSelected,
-                      onChanged: null,
+                children: [
+                  // 勾选框
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: IgnorePointer(
+                      child: Checkbox(
+                        checked: widget.isSelected,
+                        onChanged: null,
+                      ),
                     ),
                   ),
-                ),
-                // 缩略图
-                Container(
-                  width: 56,
-                  height: 56,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.micaBackgroundColor,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: theme.resources.dividerStrokeColorDefault,
-                      width: 0.5,
+                  // 缩略图
+                  Container(
+                    width: 56,
+                    height: 56,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.micaBackgroundColor,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: theme.resources.dividerStrokeColorDefault,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: Image.memory(
+                        widget.slice.thumbnailBytes,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.medium,
+                      ),
                     ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: Image.memory(
-                      widget.slice.thumbnailBytes,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.medium,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ),
           const SizedBox(width: 12),
           // 右侧：信息（点击不改变选中状态）
@@ -141,74 +141,78 @@ class _SliceItemState extends State<SliceItem> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 可编辑的后缀名
-                  SizedBox(
-                    height: 28,
-                    child: _isEditing
-                        ? TextBox(
-                            controller: _suffixController,
-                            focusNode: _focusNode,
-                            style: theme.typography.body?.copyWith(
-                              fontWeight: FontWeight.w600,
+              children: [
+                // 可编辑的后缀名
+                SizedBox(
+                  height: 28,
+                  child: _isEditing
+                      ? TextBox(
+                          controller: _suffixController,
+                          focusNode: _focusNode,
+                          style: theme.typography.body?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
+                          onSubmitted: (_) => _saveChanges(),
+                        )
+                      : GestureDetector(
+                          onTap: () {
+                            setState(() => _isEditing = true);
+                            // 延迟请求焦点，确保 TextBox 已经构建
+                            Future.microtask(() => _focusNode.requestFocus());
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                            onSubmitted: (_) => _saveChanges(),
-                          )
-                        : GestureDetector(
-                            onTap: () {
-                              setState(() => _isEditing = true);
-                              // 延迟请求焦点，确保 TextBox 已经构建
-                              Future.microtask(() => _focusNode.requestFocus());
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: Colors.transparent,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      widget.slice.customSuffix,
-                                      style: theme.typography.body?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.transparent),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    widget.slice.customSuffix,
+                                    style: theme.typography.body?.copyWith(
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    FluentIcons.edit,
-                                    size: 12,
-                                    color: theme.resources.textFillColorTertiary,
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  FluentIcons.edit,
+                                  size: 12,
+                                  color: theme.resources.textFillColorTertiary,
+                                ),
+                              ],
                             ),
                           ),
+                        ),
+                ),
+                // 尺寸信息
+                Text(
+                  '${widget.slice.width.toInt()} × ${widget.slice.height.toInt()} px',
+                  style: theme.typography.caption?.copyWith(
+                    color: theme.resources.textFillColorSecondary,
                   ),
-                  // 尺寸信息
-                  Text(
-                    '${widget.slice.width.toInt()} × ${widget.slice.height.toInt()} px',
-                    style: theme.typography.caption?.copyWith(
-                      color: theme.resources.textFillColorSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            // 右侧边距
-            const SizedBox(width: 12),
-          ],
-        ),
-      );
+          ),
+          // 右侧边距
+          const SizedBox(width: 12),
+        ],
+      ),
+    );
   }
 }

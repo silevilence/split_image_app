@@ -97,26 +97,16 @@ class _ProgressDialogState extends State<ProgressDialog> {
         children: [
           if (_error != null) ...[
             // 错误状态
-            Icon(
-              FluentIcons.error,
-              size: 48,
-              color: Colors.red,
-            ),
+            Icon(FluentIcons.error, size: 48, color: Colors.red),
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: theme.typography.body?.copyWith(
-                color: Colors.red,
-              ),
+              style: theme.typography.body?.copyWith(color: Colors.red),
               textAlign: TextAlign.center,
             ),
           ] else if (_isComplete) ...[
             // 完成状态
-            Icon(
-              FluentIcons.check_mark,
-              size: 48,
-              color: Colors.green,
-            ),
+            Icon(FluentIcons.check_mark, size: 48, color: Colors.green),
             const SizedBox(height: 16),
             Text(
               '成功导出 ${_progress?.total ?? 0} 个切片',
@@ -135,9 +125,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
           ] else ...[
             // 进度状态
             const SizedBox(height: 8),
-            ProgressBar(
-              value: (_progress?.progress ?? 0) * 100,
-            ),
+            ProgressBar(value: (_progress?.progress ?? 0) * 100),
             const SizedBox(height: 12),
             Text(
               '正在处理: ${(_progress?.current ?? 0) + 1} / ${_progress?.total ?? 0}',
@@ -161,10 +149,7 @@ class _ProgressDialogState extends State<ProgressDialog> {
       ),
       actions: [
         if (_isComplete) ...[
-          Button(
-            onPressed: _openOutputDir,
-            child: const Text('打开文件夹'),
-          ),
+          Button(onPressed: _openOutputDir, child: const Text('打开文件夹')),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('完成'),

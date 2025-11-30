@@ -38,10 +38,12 @@ class PreviewProvider extends ChangeNotifier {
   int get totalCount => _slices.length;
 
   /// 是否全部选中
-  bool get isAllSelected => _slices.isNotEmpty && _slices.every((s) => s.isSelected);
+  bool get isAllSelected =>
+      _slices.isNotEmpty && _slices.every((s) => s.isSelected);
 
   /// 是否全部未选中
-  bool get isNoneSelected => _slices.isEmpty || _slices.every((s) => !s.isSelected);
+  bool get isNoneSelected =>
+      _slices.isEmpty || _slices.every((s) => !s.isSelected);
 
   /// 生成预览切片
   /// [imageFile] 源图片文件
@@ -91,12 +93,14 @@ class PreviewProvider extends ChangeNotifier {
           regionInfo['region'] as ui.Rect,
         );
 
-        newSlices.add(SlicePreview(
-          row: regionInfo['row'] as int,
-          col: regionInfo['col'] as int,
-          region: regionInfo['region'] as ui.Rect,
-          thumbnailBytes: thumbnailBytes,
-        ));
+        newSlices.add(
+          SlicePreview(
+            row: regionInfo['row'] as int,
+            col: regionInfo['col'] as int,
+            region: regionInfo['region'] as ui.Rect,
+            thumbnailBytes: thumbnailBytes,
+          ),
+        );
 
         _progress = (i + 1) / totalSlices;
         notifyListeners();
@@ -176,7 +180,12 @@ class PreviewProvider extends ChangeNotifier {
 
     // 绘制裁剪后的图片
     final srcRect = region;
-    final dstRect = ui.Rect.fromLTWH(0, 0, thumbWidth.toDouble(), thumbHeight.toDouble());
+    final dstRect = ui.Rect.fromLTWH(
+      0,
+      0,
+      thumbWidth.toDouble(),
+      thumbHeight.toDouble(),
+    );
 
     canvas.drawImageRect(
       source,
