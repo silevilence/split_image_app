@@ -9,7 +9,7 @@ on:
       - 'v*'
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  FLUTTER_VERSION: '3.27.4'
 
 jobs:
   # 版本验证 Job
