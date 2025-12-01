@@ -243,6 +243,27 @@ flutter build windows     # Release 构建
   - 拖拽时分隔条高亮显示
   - 拖拽结束时触发 `onRatioChanged` 回调保存配置
 
+### Enhanced Preview Modal (2025-12-01)
+- **实现文件:** `lib/widgets/preview_modal.dart`
+- **功能:** 大图预览弹窗，支持导航、编辑后缀、切换导出状态
+- **入口方式:**
+  - 双击切片缩略图
+  - 点击放大按钮 (full_screen 图标)
+  - 右键菜单 → "查看大图"
+- **快捷键:**
+  - `←` `→` 方向键切换图片
+  - `Space` 切换是否导出
+  - `Esc` 关闭预览
+- **高清预览:** 使用 `dart:ui` Canvas 从源图裁剪高清图片，缓存已加载的图片
+- **SliceItem 右键菜单:**
+  - 使用 `FlyoutController` + `MenuFlyout` 实现
+  - 菜单项: 查看大图、选择/取消导出、编辑后缀
+- **事件隔离:**
+  - 静态变量 `_anyContextMenuOpen` 全局跟踪菜单打开状态
+  - 右键菜单打开时阻止 `onPointerDown` 触发选择
+  - `onSelectionChanged` 回调区分直接点击 (`startDrag: true`) 和菜单操作 (`startDrag: false`)
+  - 避免菜单关闭时的点击事件穿透到其他切片
+
 ---
 
 ## 🐙 Git Version Control Protocol

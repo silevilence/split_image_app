@@ -17,6 +17,7 @@
 - 🧩 **可扩展算法** - 策略模式架构，支持多种网格生成算法
 - ↩️ **撤销/重做** - 完整的编辑历史记录（最多 50 步）
 - 👁️ **实时预览** - 生成切片缩略图，支持批量选择
+- 🔎 **大图预览** - 双击/右键查看切片大图，支持左右键导航
 - 📝 **自定义命名** - 可编辑每个切片的导出文件名
 - 💾 **批量导出** - 后台处理，支持 PNG/JPG 格式，显示进度
 - ⚙️ **设置系统** - TOML 配置文件，可自定义快捷键、默认参数
@@ -111,6 +112,7 @@ lib/
 │   ├── margins_input.dart # 边距输入组件
 │   ├── preview_panel.dart
 │   ├── preview_gallery.dart
+│   ├── preview_modal.dart # 大图预览弹窗
 │   ├── resizable_split_view.dart # 可调整分割视图
 │   ├── slice_item.dart
 │   ├── export_dialog.dart

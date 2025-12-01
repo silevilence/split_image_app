@@ -28,6 +28,37 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 ## ✅ 已完成 (Completed)
 
+### Workflow: 🔍 Enhanced Preview Modal (增强型预览/右键菜单)
+**完成日期:** 2025-12-01
+
+#### 📝 Description
+在预览区提供右键菜单和大图预览功能，支持快速编辑和导航。
+
+#### ✅ Checklist
+- [x] 预览区图片右键菜单 (Context Menu)
+- [x] "查看大图" 菜单项打开大图预览
+- [x] 预览 Modal/Dialog 显示当前图片大图
+- [x] Previous/Next 导航切换查看其他图片
+- [x] Edit Custom Suffix 输入框 (自定义导出文件名后缀)
+- [x] Toggle Export 复选框 (决定是否导出该图)
+- [x] 键盘快捷键支持 (左右方向键切换图片, Space 切换导出, Esc 关闭)
+- [x] 双击缩略图打开大图预览
+- [x] 放大按钮打开大图预览
+
+#### 📁 产出文件
+```
+lib/
+├── widgets/
+│   ├── preview_modal.dart        # 新增: 大图预览弹窗
+│   ├── slice_item.dart           # 更新: 添加右键菜单、双击预览、放大按钮
+│   └── preview_gallery.dart      # 更新: 集成预览功能
+test/
+└── widgets/
+    └── preview_modal_test.dart   # 新增: 预览组件测试
+```
+
+---
+
 ### UI: 🏛️ Resizable Control Panel (可调整控制面板)
 **完成日期:** 2025-11-30
 
@@ -257,33 +288,6 @@ lib/
 
 ## 📅 计划开发 (Planned)
 
-### Workflow: 🔍 Enhanced Preview Modal (增强型预览/右键菜单)
-
-#### 📝 Description
-在 Grid 预览区提供右键菜单和大图预览功能，支持快速编辑和导航。
-
-#### ✅ Checklist
-- [ ] 预览区图片右键菜单 (Context Menu)
-- [ ] "Zoom/Inspect" 菜单项打开大图预览
-- [ ] 预览 Modal/Dialog 显示当前图片大图
-- [ ] Previous/Next 导航切换查看其他图片
-- [ ] Edit Custom Suffix 输入框 (自定义导出文件名后缀)
-- [ ] Toggle Export 复选框 (决定是否导出该图)
-- [ ] 键盘快捷键支持 (左右方向键切换图片)
-
-#### 📁 预计产出文件
-```
-lib/
-├── widgets/
-│   ├── preview_modal.dart        # 大图预览弹窗
-│   ├── slice_item.dart           # 更新: 添加右键菜单
-│   └── preview_gallery.dart      # 更新: 集成预览功能
-└── models/
-    └── slice_preview.dart        # 更新: 添加 customSuffix 字段
-```
-
----
-
 ### DevOps: 🚀 GitHub Actions & Release Protocol (自动化发布)
 
 #### 📝 Description
@@ -320,8 +324,8 @@ scripts/
 | Grid Algorithm Architecture | 🔴 高 | 2-3h | - | ✅ 已完成 |
 | 智能网格初始化算法 | 🔴 高 | 4-6h | Architecture | ✅ 已完成 |
 | 边缘检测算法 | 🟡 中 | 2-3h | Architecture | ✅ 已完成 |
-| Resizable Control Panel | 🟡 中 | 2-3h | - | 📅 计划中 |
-| Enhanced Preview Modal | 🟡 中 | 3-4h | - | 📅 计划中 |
+| Resizable Control Panel | 🟡 中 | 2-3h | - | ✅ 已完成 |
+| Enhanced Preview Modal | 🟡 中 | 3-4h | - | ✅ 已完成 |
 | GitHub Actions & Release | 🟢 低 | 2-3h | - | 📅 计划中 |
 
 ---

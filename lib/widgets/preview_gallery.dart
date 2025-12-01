@@ -1,7 +1,10 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/editor_provider.dart';
 import '../providers/preview_provider.dart';
+import 'preview_modal.dart';
 import 'slice_item.dart';
 
 /// 预览画廊组件
@@ -32,6 +35,25 @@ class _PreviewGalleryState extends State<PreviewGallery> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 打开预览模态框
+  void _openPreviewModal(BuildContext context, int index) {
+    final previewProvider = context.read<PreviewProvider>();
+    final editorProvider = context.read<EditorProvider>();
+
+    PreviewModal.show(
+      context: context,
+      slices: previewProvider.slices,
+      initialIndex: index,
+      sourceImageFile: editorProvider.imageFile,
+      onSelectionChanged: (idx, isSelected) {
+        previewProvider.setSliceSelection(idx, isSelected);
+      },
+      onSuffixChanged: (idx, suffix) {
+        previewProvider.updateSliceSuffix(idx, suffix);
+      },
+    );
   }
 
   /// 处理拖拽时的自动滚动
@@ -218,6 +240,8 @@ class _PreviewGalleryState extends State<PreviewGallery> {
       builder: (context, constraints) {
         return Listener(
           onPointerDown: (event) {
+            // 只响应左键
+            if (event.buttons != kPrimaryButton) return;
             // 记录列表区域位置
             final RenderBox box = context.findRenderObject() as RenderBox;
             final position = box.localToGlobal(Offset.zero);
@@ -232,6 +256,14 @@ class _PreviewGalleryState extends State<PreviewGallery> {
           },
           onPointerUp: (_) {
             // 拖拽结束
+            _isDragging = false;
+            _dragSelectValue = null;
+            _dragStartIndex = null;
+            _lastDragIndex = null;
+            _dragPointerY = null;
+          },
+          // 当指针离开窗口或被取消时也要重置拖拽状态
+          onPointerCancel: (_) {
             _isDragging = false;
             _dragSelectValue = null;
             _dragStartIndex = null;
@@ -262,17 +294,24 @@ class _PreviewGalleryState extends State<PreviewGallery> {
                 child: SliceItem(
                   slice: slice,
                   isSelected: slice.isSelected,
-                  onSelectionToggle: (newValue) {
-                    // 单击切换选中状态
+                  onSelectionChanged: (newValue, {bool startDrag = true}) {
+                    // 切换选中状态
                     provider.setSliceSelection(index, newValue);
-                    // 开始拖拽模式
-                    _isDragging = true;
-                    _dragSelectValue = newValue;
-                    _dragStartIndex = index;
-                    _lastDragIndex = index;
+                    // 只有直接点击才开始拖拽模式
+                    if (startDrag) {
+                      _isDragging = true;
+                      _dragSelectValue = newValue;
+                      _dragStartIndex = index;
+                      _lastDragIndex = index;
+                    }
                   },
                   onSuffixChanged: (suffix) {
                     provider.updateSliceSuffix(index, suffix);
+                  },
+                  onPreviewRequested: () {
+                    // 打开预览前重置拖拽状态
+                    _isDragging = false;
+                    _openPreviewModal(context, index);
                   },
                 ),
               );
