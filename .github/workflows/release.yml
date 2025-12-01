@@ -9,7 +9,7 @@ on:
       - 'v*'
 
 env:
-  FLUTTER_VERSION: '3.32.2'
+  FLUTTER_VERSION: '3.24.0'
 
 jobs:
   # 版本验证 Job
@@ -155,26 +155,50 @@ jobs:
       - name: Display artifacts
         run: ls -R artifacts
 
-      - name: Generate Release Notes
+      - name: Extract Release Notes from CHANGELOG
         id: release_notes
         shell: bash
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
           
-          # 生成发布说明
-          cat << EOF > release_notes.md
-          ## SmartGridSlicer v${VERSION}
+          # 从 CHANGELOG.md 提取当前版本的更新说明
+          if [ -f "CHANGELOG.md" ]; then
+            # 提取指定版本的内容 (从 ## [x.x.x] 到下一个 ## [x.x.x] 或文件末尾)
+            CHANGELOG_CONTENT=$(awk -v ver="$VERSION" '
+              /^## \[/ {
+                if (found) exit
+                if ($0 ~ "\\[" ver "\\]") found=1
+              }
+              found {print}
+            ' CHANGELOG.md)
+            
+            if [ -n "$CHANGELOG_CONTENT" ]; then
+              echo "Found changelog for version $VERSION"
+              echo "$CHANGELOG_CONTENT" > version_notes.md
+            else
+              echo "No changelog found for version $VERSION, using default"
+              echo "## SmartGridSlicer v${VERSION}" > version_notes.md
+              echo "" >> version_notes.md
+              echo "请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) 了解详细更新内容。" >> version_notes.md
+            fi
+          else
+            echo "CHANGELOG.md not found, using default notes"
+            echo "## SmartGridSlicer v${VERSION}" > version_notes.md
+          fi
           
-          ### 📦 下载
-          - **便携版 (Portable)**: 解压即用，无需安装
-          - **安装版 (Installer)**: 标准 Windows 安装程序
+          # 添加下载说明
+          cat << EOF >> release_notes.md
+          $(cat version_notes.md)
+          
+          ---
+          
+          ### 📦 下载说明
+          - **安装版 (Setup)**: 标准 Windows 安装程序，支持开始菜单快捷方式
+          - **便携版 (Portable)**: 解压即用，无需安装，适合 U 盘携带
           
           ### 📋 系统要求
           - Windows 10/11 (64-bit)
           - 无需额外运行时依赖
-          
-          ### 🔄 更新说明
-          请查看 [ROADMAP.md](https://github.com/${{ github.repository }}/blob/main/ROADMAP.md) 了解详细更新内容。
           
           ---
           > 首次使用？请查看 [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) 获取使用指南。
