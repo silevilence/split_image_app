@@ -1,0 +1,196 @@
+# SmartGridSlicer - 自动化发布工作流
+# 触发条件: 推送 v* 格式的 Tag (如 v1.0.0)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FLUTTER_VERSION: '3.32.2'
+
+jobs:
+  # 版本验证 Job
+  validate:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag_version: ${{ steps.get_version.outputs.tag_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from tag and pubspec
+        id: get_version
+        shell: pwsh
+        run: |
+          # 从 Tag 获取版本号 (去除 v 前缀)
+          $tagVersion = "${{ github.ref_name }}".TrimStart('v')
+          echo "tag_version=$tagVersion" >> $env:GITHUB_OUTPUT
+          
+          # 从 pubspec.yaml 获取版本号
+          $pubspecContent = Get-Content pubspec.yaml -Raw
+          if ($pubspecContent -match 'version:\s*(\d+\.\d+\.\d+)') {
+            $pubspecVersion = $matches[1]
+            echo "version=$pubspecVersion" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "::error::Cannot find version in pubspec.yaml"
+            exit 1
+          }
+          
+          # 验证版本号匹配
+          if ($tagVersion -ne $pubspecVersion) {
+            echo "::error::Tag version ($tagVersion) does not match pubspec.yaml version ($pubspecVersion)"
+            exit 1
+          }
+          
+          echo "✅ Version validated: $pubspecVersion"
+
+  # Windows 构建 Job
+  build-windows:
+    name: Build Windows
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run flutter analyze
+        run: flutter analyze
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Rename executable (optional branding)
+        shell: pwsh
+        run: |
+          $buildPath = "build\windows\x64\runner\Release"
+          # 如果需要重命名可执行文件，取消下面的注释
+          # Rename-Item "$buildPath\split_image_app.exe" "SmartGridSlicer.exe"
+          
+          # 显示构建产物
+          Get-ChildItem $buildPath -Recurse | Select-Object FullName
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $version = "${{ needs.validate.outputs.version }}"
+          $buildPath = "build\windows\x64\runner\Release"
+          $zipName = "SmartGridSlicer-$version-windows-portable.zip"
+          
+          # 创建便携版 ZIP
+          Compress-Archive -Path "$buildPath\*" -DestinationPath $zipName -Force
+          echo "Created: $zipName"
+
+      - name: Setup Inno Setup
+        shell: pwsh
+        run: |
+          # 下载 Inno Setup
+          $innoUrl = "https://jrsoftware.org/download.php/is.exe"
+          $innoInstaller = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller
+          
+          # 静默安装
+          Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+          
+          # 添加到 PATH
+          $innoPath = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          echo "$innoPath" >> $env:GITHUB_PATH
+
+      - name: Build Installer
+        shell: pwsh
+        run: |
+          $version = "${{ needs.validate.outputs.version }}"
+          $buildPath = "${{ github.workspace }}\build\windows\x64\runner\Release"
+          $outputPath = "${{ github.workspace }}"
+          
+          # 编译安装程序
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$version" `
+            "/DBuildPath=$buildPath" `
+            "/DOutputPath=$outputPath" `
+            "scripts\installer.iss"
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartGridSlicer-portable
+          path: SmartGridSlicer-*-windows-portable.zip
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartGridSlicer-installer
+          path: SmartGridSlicer-*-setup.exe
+
+  # 创建 Release Job
+  release:
+    name: Create Release
+    needs: [validate, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display artifacts
+        run: ls -R artifacts
+
+      - name: Generate Release Notes
+        id: release_notes
+        shell: bash
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          
+          # 生成发布说明
+          cat << EOF > release_notes.md
+          ## SmartGridSlicer v${VERSION}
+          
+          ### 📦 下载
+          - **便携版 (Portable)**: 解压即用，无需安装
+          - **安装版 (Installer)**: 标准 Windows 安装程序
+          
+          ### 📋 系统要求
+          - Windows 10/11 (64-bit)
+          - 无需额外运行时依赖
+          
+          ### 🔄 更新说明
+          请查看 [ROADMAP.md](https://github.com/${{ github.repository }}/blob/main/ROADMAP.md) 了解详细更新内容。
+          
+          ---
+          > 首次使用？请查看 [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) 获取使用指南。
+          EOF
+          
+          echo "Generated release notes"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SmartGridSlicer v${{ needs.validate.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            artifacts/SmartGridSlicer-portable/*
+            artifacts/SmartGridSlicer-installer/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
