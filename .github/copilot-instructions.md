@@ -264,6 +264,42 @@ flutter build windows     # Release 构建
   - `onSelectionChanged` 回调区分直接点击 (`startDrag: true`) 和菜单操作 (`startDrag: false`)
   - 避免菜单关闭时的点击事件穿透到其他切片
 
+### Image Processing Pipeline (2025-12-01) 🚧 开发中
+- **架构:** 策略模式 (Strategy Pattern) + 责任链 (Chain of Responsibility)
+- **文件结构:**
+  - `lib/processors/image_processor.dart` - 抽象基类 + ProcessorType 枚举
+  - `lib/processors/processor_chain.dart` - 责任链管理器 + SliceOverrides
+  - `lib/processors/processor_factory.dart` - 处理器工厂类
+  - `lib/processors/processor_io.dart` - ProcessorInput/Output 数据模型
+  - `lib/processors/processor_param.dart` - 参数定义 (ProcessorParamDef, ProcessorParams)
+  - `lib/providers/pipeline_provider.dart` - Pipeline 状态管理
+- **内置处理器 (已实现参数定义，实际处理逻辑待实现):**
+  - `BackgroundRemovalProcessor` - 背景去除 (阈值, 替换色)
+  - `SmartCropProcessor` - 智能裁剪 (四边边距)
+  - `ColorReplaceProcessor` - 颜色替换 (目标色, 新颜色, 阈值)
+  - `ResizeProcessor` - 缩放调整 (宽度, 高度, 单位)
+- **参数系统:**
+  - `ProcessorParamDef` - 参数定义 (名称、类型、默认值、描述、isPerImage)
+  - `ProcessorParamType` - 参数类型枚举 (intType, doubleType, color, string, enumType)
+  - Global Parameters - 应用于所有图片
+  - Per-Image Parameters - 可针对单张图片覆盖
+- **UI 组件:**
+  - `PipelineSummary` - 流水线概要卡片，显示活跃步骤数和应用按钮
+  - `PipelineManagerModal` - 流水线管理弹窗，添加/删除/重排序处理器
+  - `ProcessorStepEditor` - 处理器参数编辑器，根据参数类型自动生成输入控件
+  - `ColorPickerButton` - HSV 通用颜色选择器
+- **HSV 颜色选择器:**
+  - 饱和度-亮度 2D 选择区 (CustomPainter)
+  - 色相滑块 (彩虹渐变)
+  - Alpha 透明度滑块
+  - Hex 输入框 (#AARRGGBB 格式)
+  - RGB ↔ HSV 双向转换
+- **待实现功能:**
+  - [ ] 处理器实际图像处理逻辑
+  - [ ] Per-Image 参数覆盖 UI (在 Preview Modal 中)
+  - [ ] Pipeline 配置持久化到 TOML
+  - [ ] 单图预览处理效果
+
 ---
 
 ## 🐙 Git Version Control Protocol

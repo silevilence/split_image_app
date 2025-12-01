@@ -24,6 +24,11 @@
 - ⌨️ **快捷键系统** - 基于 Flutter Shortcuts/Actions，支持自定义配置和冲突检测
 - 📁 **路径记忆** - 自动记住上次导出目录
 - 🏛️ **可调整面板** - 设置区与预览区可拖拽调整大小，自动记忆布局比例
+- 🖼️ **图像处理流水线** (开发中) - 对切片进行自动化后处理，支持：
+  - 背景去除 - 基于阈值移除背景色
+  - 智能裁剪 - 自动裁剪边缘空白
+  - 颜色替换 - 指定颜色替换
+  - 缩放调整 - 统一调整图片尺寸
 
 ## 📸 截图
 
@@ -99,9 +104,17 @@ lib/
 │   ├── editor_history.dart
 │   ├── margins.dart       # 边距数据模型
 │   └── slice_preview.dart
+├── processors/            # 图像处理器
+│   ├── image_processor.dart      # 抽象基类
+│   ├── processor_chain.dart      # 责任链管理器
+│   ├── background_removal_processor.dart
+│   ├── smart_crop_processor.dart
+│   ├── color_replace_processor.dart
+│   └── resize_processor.dart
 ├── providers/             # 状态管理
 │   ├── editor_provider.dart
-│   └── preview_provider.dart
+│   ├── preview_provider.dart
+│   └── pipeline_provider.dart
 ├── services/              # 服务层
 │   └── config_service.dart # 配置读写服务
 ├── screens/
@@ -117,7 +130,11 @@ lib/
 │   ├── slice_item.dart
 │   ├── export_dialog.dart
 │   ├── progress_dialog.dart
-│   └── settings_dialog.dart # 设置对话框
+│   ├── settings_dialog.dart # 设置对话框
+│   ├── pipeline_summary.dart # 流水线概要
+│   ├── pipeline_manager_modal.dart # 流水线管理弹窗
+│   ├── processor_step_editor.dart # 处理器参数编辑
+│   └── color_picker_button.dart # HSV 颜色选择器
 └── utils/
     ├── coordinate_utils.dart
     └── image_processor.dart

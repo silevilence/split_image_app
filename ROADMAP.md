@@ -22,7 +22,136 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 ## 🚧 开发中 (In Progress)
 
-*暂无*
+### Feature: 🖼️ Image Processing Pipeline (图片后处理流水线)
+
+#### 📝 Description
+允许用户对切割后的图片进行一系列自动化处理。采用策略模式扩展架构，支持动态组合处理链，并提供全局参数与单图参数的覆盖机制。
+
+#### 🏗️ 1. Pipeline Architecture (核心架构) ✅
+**状态:** 已完成 (2025-12-01)
+
+**设计模式:**
+- 扩展策略模式 (Strategy Pattern)
+- 设计 `ImageProcessor` 基类，支持动态组合处理链 (Chain of Responsibility)
+
+**参数逻辑 (Crucial):**
+- **Global Parameters (方法级参数):** 如缩放算法、替换颜色等，应用于所有图片
+- **Per-Image Parameters (特定图片参数):** 如裁剪边距、颜色阈值等，可针对单张图片覆盖
+- **Override Mechanism:** 每张图片对象存储 `Map<StepID, OverriddenParams>`，无覆盖时使用 Pipeline 默认值
+
+**状态管理:**
+- 默认无处理 (Empty Pipeline)
+- 设置需持久化到配置文件
+- Session 期间不随重新切图重置
+
+#### ✅ 已完成 Checklist (Architecture)
+- [x] 设计 `ImageProcessor` 抽象基类
+- [x] 实现 `ProcessorChain` 责任链管理器
+- [x] 定义 `ProcessorInput` / `ProcessorOutput` 数据模型
+- [x] 实现参数覆盖机制 (Override Mechanism)
+- [x] 扩展 `SlicePreview` 模型支持 per-image overrides
+- [x] 创建 `PipelineProvider` 状态管理
+
+#### 📁 已产出文件 (Architecture)
+```
+lib/
+├── processors/
+│   ├── processors.dart           # 模块导出文件
+│   ├── image_processor.dart      # 抽象基类 + ProcessorType 枚举
+│   ├── processor_chain.dart      # 责任链管理器 + SliceOverrides
+│   ├── processor_factory.dart    # 工厂类
+│   ├── processor_io.dart         # ProcessorInput/Output 数据模型
+│   └── processor_param.dart      # 参数定义 + 参数值集合
+├── providers/
+│   └── pipeline_provider.dart    # Pipeline 状态管理 Provider
+├── models/
+│   └── slice_preview.dart        # 更新: 添加 processorOverrides
+test/
+└── processors/
+    └── processor_architecture_test.dart  # 架构单元测试
+```
+
+---
+
+#### 🎛️ 2. UI: Pipeline Management (全局管理) ✅
+**状态:** 已完成 (2025-12-01)
+
+**位置:** 侧边栏 "Settings" 和 "Preview" 区域之间
+
+**显示内容:**
+- 当前处理链概要（如 "3 Steps Active"）
+- 控制按钮组
+
+**交互功能:**
+- **"Edit Pipeline" Button:** 弹出 Manager Modal 大窗口
+- **Manager Modal 功能:**
+  - 添加/删除处理步骤
+  - 拖拽重排序 (Reorder)
+  - 步骤重命名（支持同类方法自动命名如 `Crop-1`, `Crop-2`）
+  - 编辑每个步骤的全局参数
+- **"Re-apply" Button:** 修改设置后**不会**自动生效，需手动点击触发重新渲染 (防卡顿)
+
+#### 🖼️ 3. UI: Per-Image Fine-tuning (单图微调) 📅
+
+**位置:** 集成在 Enhanced Preview Modal (大图预览窗) 中
+
+**功能:**
+- 右侧面板显示当前 Pipeline 的所有步骤
+- 针对支持 Per-Image 的参数提供 "Override" 复选框
+- 勾选后可单独调整该图的参数
+- "Preview This Image" 按钮查看单图效果
+
+#### 🧩 4. Standard Processors (内置处理器) 📅
+
+| Processor | 描述 | Global Params | Per-Image Params |
+|-----------|------|---------------|------------------|
+| **Background Removal** | 基于角落的魔棒算法移除背景 | 阈值, 替换色/透明 | - |
+| **Smart Crop** | 边缘裁剪 | - | Margin (Top/Bottom/Left/Right) |
+| **Color Replace** | 指定颜色替换 | Target Color, New Color | Threshold |
+| **Resize** | 强制缩放 | Width/Height + Unit | - |
+
+#### 📋 待完成 Checklist
+
+**Pipeline UI:**
+- [x] 创建 Pipeline 概要显示组件
+- [x] 实现 Pipeline Manager Modal
+- [x] 添加步骤 Add/Delete/Reorder 功能
+- [x] 实现步骤重命名与自动命名
+- [x] 添加 "Re-apply" 按钮逻辑
+- [x] HSV 通用颜色选择器组件
+
+**Per-Image UI:**
+- [ ] 扩展 Preview Modal 添加 Pipeline 面板
+- [ ] 实现 Override 复选框组件
+- [ ] 实现单图预览功能
+
+**Processors:**
+- [x] 实现 `BackgroundRemovalProcessor` 参数定义
+- [x] 实现 `SmartCropProcessor` 参数定义
+- [x] 实现 `ColorReplaceProcessor` 参数定义
+- [x] 实现 `ResizeProcessor` 参数定义
+- [ ] 实现处理器实际图像处理逻辑 (process 方法)
+
+**Persistence:**
+- [ ] 扩展 `AppConfig` 支持 Pipeline 配置
+- [ ] 实现 Pipeline 序列化/反序列化
+- [ ] Session 状态管理
+
+#### 📁 已产出文件 (UI & Processors)
+```
+lib/
+├── widgets/
+│   ├── pipeline_summary.dart         # ✅ Pipeline 概要显示
+│   ├── pipeline_manager_modal.dart   # ✅ Pipeline 编辑弹窗
+│   ├── processor_step_editor.dart    # ✅ 步骤参数编辑器
+│   ├── color_picker_button.dart      # ✅ HSV 颜色选择器
+│   └── preview_modal.dart            # 📅 待更新: 添加 Per-Image 微调
+└── processors/
+    ├── background_removal_processor.dart  # ✅ 参数定义完成，处理逻辑待实现
+    ├── smart_crop_processor.dart          # ✅ 参数定义完成，处理逻辑待实现
+    ├── color_replace_processor.dart       # ✅ 参数定义完成，处理逻辑待实现
+    └── resize_processor.dart              # ✅ 参数定义完成，处理逻辑待实现
+```
 
 ---
 
@@ -394,10 +523,11 @@ lib/
 - [ ] 实现单图预览功能
 
 **Processors:**
-- [ ] 实现 `BackgroundRemovalProcessor`
-- [ ] 实现 `SmartCropProcessor`
-- [ ] 实现 `ColorReplaceProcessor`
-- [ ] 实现 `ResizeProcessor`
+- [x] 实现 `BackgroundRemovalProcessor` 参数定义
+- [x] 实现 `SmartCropProcessor` 参数定义
+- [x] 实现 `ColorReplaceProcessor` 参数定义
+- [x] 实现 `ResizeProcessor` 参数定义
+- [ ] 实现处理器实际图像处理逻辑 (process 方法)
 
 **Persistence:**
 - [ ] 扩展 `AppConfig` 支持 Pipeline 配置

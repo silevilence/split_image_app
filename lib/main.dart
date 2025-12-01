@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'providers/editor_provider.dart';
+import 'providers/pipeline_provider.dart';
 import 'providers/preview_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/config_service.dart';
@@ -45,6 +46,7 @@ class SmartGridSlicerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => EditorProvider()),
         ChangeNotifierProvider(create: (_) => PreviewProvider()),
+        ChangeNotifierProvider(create: (_) => PipelineProvider()),
       ],
       child: FluentApp(
         title: 'SmartGridSlicer',
