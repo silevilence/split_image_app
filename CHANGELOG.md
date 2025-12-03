@@ -7,6 +7,48 @@
 
 ---
 
+## [1.1.0] - 2025-12-03
+
+### ✨ 新功能
+
+#### 图片后处理流水线 (Image Processing Pipeline)
+- **架构设计**: 策略模式 + 责任链，支持动态组合处理步骤
+- **参数系统**: 全局参数与单图参数覆盖机制
+- **Pipeline 管理器**: 添加/删除/重排序处理步骤
+- **步骤重命名**: 支持同类方法自动命名 (如 `Crop-1`, `Crop-2`)
+- **HSV 颜色选择器**: 饱和度-亮度 2D 选择区 + 色相滑块 + Alpha 透明度
+- **Pipeline 导入/导出**: JSON 格式，支持覆盖/追加模式
+
+#### 内置处理器
+- **背景去除 (Background Removal)**: 四角采样 + Flood Fill 泛洪算法
+- **边缘裁剪 (Smart Crop)**: 按指定像素值裁剪四边
+- **颜色替换 (Color Replace)**: RGB 距离匹配，可调阈值
+- **缩放调整 (Resize)**: 双线性插值，支持像素/百分比单位
+
+#### 单图微调 (Per-Image Fine-tuning)
+- 大图预览窗右侧可折叠 Pipeline 面板
+- Override 复选框启用/禁用单图参数覆盖
+- 实时预览处理效果按钮
+
+#### Pipeline 预览与导出集成
+- "应用" 按钮触发 Pipeline 预览弹窗
+- 显示所有切片处理后的效果
+- 显示处理前后尺寸变化
+- 导出时自动应用 Pipeline 处理
+
+### 🐛 问题修复
+
+- 修复 Smart Crop 处理器逻辑（改为直接按用户指定像素值裁剪）
+- 修复导出时边界检查问题导致的崩溃
+- 修复 PreviewModal 测试缺少 PipelineProvider 依赖
+
+### 📦 构建产物
+
+- `SmartGridSlicer-1.1.0-setup.exe` - Windows 安装程序
+- `SmartGridSlicer-1.1.0-windows-portable.zip` - 便携版（解压即用）
+
+---
+
 ## [1.0.0] - 2025-12-01
 
 ### 🎉 首次发布
@@ -119,4 +161,5 @@ SmartGridSlicer 的第一个正式版本，提供完整的贴纸图集切割功�
 
 ---
 
+[1.1.0]: https://github.com/silevilence/split_image_app/releases/tag/v1.1.0
 [1.0.0]: https://github.com/silevilence/split_image_app/releases/tag/v1.0.0
