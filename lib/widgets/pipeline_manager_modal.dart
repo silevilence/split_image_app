@@ -8,6 +8,7 @@ import 'processor_step_editor.dart';
 /// Pipeline 管理弹窗
 ///
 /// 用于编辑处理器链：添加/删除/重排序/重命名/参数编辑。
+/// 支持导入/导出配置到 JSON 文件。
 class PipelineManagerModal extends StatefulWidget {
   const PipelineManagerModal({super.key});
 
@@ -28,6 +29,9 @@ class _PipelineManagerModalState extends State<PipelineManagerModal> {
   /// 当前选中的处理器索引
   int? _selectedIndex;
 
+  /// 是否正在导入/导出
+  bool _isImportExporting = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
@@ -41,6 +45,12 @@ class _PipelineManagerModalState extends State<PipelineManagerModal> {
           const SizedBox(width: 8),
           const Text('图片处理流水线'),
           const Spacer(),
+          // 导入按钮
+          _buildImportButton(context, provider),
+          const SizedBox(width: 8),
+          // 导出按钮
+          _buildExportButton(context, provider),
+          const SizedBox(width: 12),
           // 添加处理器按钮
           _buildAddButton(context, provider),
         ],
@@ -76,6 +86,170 @@ class _PipelineManagerModalState extends State<PipelineManagerModal> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ],
+    );
+  }
+
+  /// 构建导入按钮
+  Widget _buildImportButton(BuildContext context, PipelineProvider provider) {
+    return Tooltip(
+      message: '从 JSON 文件导入流水线配置',
+      child: IconButton(
+        icon: Icon(
+          FluentIcons.import,
+          size: 16,
+          color: _isImportExporting ? Colors.grey[100] : null,
+        ),
+        onPressed: _isImportExporting
+            ? null
+            : () => _handleImport(context, provider),
+      ),
+    );
+  }
+
+  /// 构建导出按钮
+  Widget _buildExportButton(BuildContext context, PipelineProvider provider) {
+    final isEmpty = provider.processors.isEmpty;
+    return Tooltip(
+      message: isEmpty ? '流水线为空，无法导出' : '导出流水线配置到 JSON 文件',
+      child: IconButton(
+        icon: Icon(
+          FluentIcons.export,
+          size: 16,
+          color: (isEmpty || _isImportExporting) ? Colors.grey[100] : null,
+        ),
+        onPressed: (isEmpty || _isImportExporting)
+            ? null
+            : () => _handleExport(context, provider),
+      ),
+    );
+  }
+
+  /// 处理导入操作
+  Future<void> _handleImport(
+    BuildContext context,
+    PipelineProvider provider,
+  ) async {
+    // 如果已有内容，询问用户是覆盖还是追加
+    bool append = false;
+    if (provider.processors.isNotEmpty) {
+      final choice = await _showImportModeDialog(context);
+      if (choice == null) return; // 用户取消
+      append = choice;
+    }
+
+    setState(() => _isImportExporting = true);
+
+    try {
+      final count = await provider.importPipelineFromJson(append: append);
+
+      if (!context.mounted) return;
+
+      if (count > 0) {
+        // 成功导入
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('导入成功'),
+            content: Text('已导入 $count 个处理步骤'),
+            severity: InfoBarSeverity.success,
+            onClose: close,
+          ),
+        );
+        // 清除选中状态
+        setState(() => _selectedIndex = null);
+      } else if (count == 0) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('导入完成'),
+            content: const Text('没有找到有效的处理步骤'),
+            severity: InfoBarSeverity.warning,
+            onClose: close,
+          ),
+        );
+      }
+      // count == -1 表示用户取消，不显示任何提示
+    } finally {
+      if (mounted) {
+        setState(() => _isImportExporting = false);
+      }
+    }
+  }
+
+  /// 处理导出操作
+  Future<void> _handleExport(
+    BuildContext context,
+    PipelineProvider provider,
+  ) async {
+    setState(() => _isImportExporting = true);
+
+    try {
+      final success = await provider.exportPipelineToJson();
+
+      if (!context.mounted) return;
+
+      if (success) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('导出成功'),
+            content: const Text('流水线配置已保存'),
+            severity: InfoBarSeverity.success,
+            onClose: close,
+          ),
+        );
+      } else if (provider.errorMessage != null) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('导出失败'),
+            content: Text(provider.errorMessage!),
+            severity: InfoBarSeverity.error,
+            onClose: close,
+          ),
+        );
+        provider.clearError();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isImportExporting = false);
+      }
+    }
+  }
+
+  /// 显示导入模式选择对话框
+  ///
+  /// 返回 true 表示追加，false 表示覆盖，null 表示取消
+  Future<bool?> _showImportModeDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('导入方式'),
+        content: const Text(
+          '流水线中已有处理步骤，请选择导入方式：\n\n'
+          '• 覆盖：清空现有步骤，使用导入的配置\n'
+          '• 追加：在现有步骤后添加导入的配置',
+        ),
+        actions: [
+          Button(
+            child: const Text('取消'),
+            onPressed: () => Navigator.of(context).pop(null),
+          ),
+          FilledButton(
+            child: const Text('覆盖'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(
+                FluentTheme.of(context).accentColor,
+              ),
+            ),
+            child: const Text('追加'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../models/margins.dart';
 import '../models/slice_preview.dart';
+import '../processors/processor_param.dart';
 
 /// 预览系统状态管理
 class PreviewProvider extends ChangeNotifier {
@@ -267,6 +268,34 @@ class PreviewProvider extends ChangeNotifier {
   void updateSliceSuffix(int index, String suffix) {
     if (index >= 0 && index < _slices.length) {
       _slices[index].customSuffix = suffix;
+      notifyListeners();
+    }
+  }
+
+  /// 设置切片的处理器覆盖参数
+  void setSliceOverrides(
+    int index,
+    String processorId,
+    ProcessorParams params,
+  ) {
+    if (index >= 0 && index < _slices.length) {
+      _slices[index].setOverrides(processorId, params);
+      notifyListeners();
+    }
+  }
+
+  /// 移除切片的处理器覆盖参数
+  void removeSliceOverrides(int index, String processorId) {
+    if (index >= 0 && index < _slices.length) {
+      _slices[index].removeOverrides(processorId);
+      notifyListeners();
+    }
+  }
+
+  /// 清除切片的所有覆盖参数
+  void clearSliceOverrides(int index) {
+    if (index >= 0 && index < _slices.length) {
+      _slices[index].clearOverrides();
       notifyListeners();
     }
   }

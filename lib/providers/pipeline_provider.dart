@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../processors/processors.dart';
 
@@ -381,5 +385,142 @@ class PipelineProvider extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  // ==================== 导入/导出功能 ====================
+
+  /// 导出 Pipeline 配置到 JSON 文件
+  ///
+  /// 仅导出处理器配置，不包含单图覆盖参数。
+  /// 返回 true 表示导出成功，false 表示取消或失败。
+  Future<bool> exportPipelineToJson() async {
+    if (_chain.isEmpty) {
+      _errorMessage = '流水线为空，无法导出';
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      // 选择保存路径
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: '导出流水线配置',
+        fileName: 'pipeline_config.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null) {
+        // 用户取消
+        return false;
+      }
+
+      // 构建配置数据（仅处理器，不含单图覆盖）
+      final config = {
+        'version': 1,
+        'exportedAt': DateTime.now().toIso8601String(),
+        'processors': _chain.toConfig(),
+      };
+
+      // 写入文件
+      final file = File(result);
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(config);
+      await file.writeAsString(jsonStr, flush: true);
+
+      return true;
+    } catch (e) {
+      _errorMessage = '导出失败: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// 从 JSON 文件导入 Pipeline 配置
+  ///
+  /// [append] 为 true 时追加到现有配置，为 false 时替换现有配置。
+  /// 返回导入的处理器数量，-1 表示取消或失败。
+  Future<int> importPipelineFromJson({required bool append}) async {
+    debugPrint('[Pipeline] importPipelineFromJson called, append=$append');
+    debugPrint('[Pipeline] Current processors count: ${_chain.length}');
+
+    try {
+      // 选择文件
+      final result = await FilePicker.platform.pickFiles(
+        dialogTitle: '导入流水线配置',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        // 用户取消
+        return -1;
+      }
+
+      final filePath = result.files.first.path;
+      if (filePath == null) {
+        _errorMessage = '无法获取文件路径';
+        notifyListeners();
+        return -1;
+      }
+
+      // 读取文件
+      final file = File(filePath);
+      final jsonStr = await file.readAsString();
+      final config = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+      // 验证配置格式
+      final processors = config['processors'];
+      if (processors == null || processors is! List) {
+        _errorMessage = '无效的配置文件格式';
+        notifyListeners();
+        return -1;
+      }
+
+      debugPrint('[Pipeline] Config contains ${processors.length} processors');
+
+      // 如果不是追加模式，先清空
+      if (!append) {
+        debugPrint('[Pipeline] Replace mode: clearing existing processors');
+        _chain.clear();
+      } else {
+        debugPrint(
+          '[Pipeline] Append mode: keeping existing ${_chain.length} processors',
+        );
+      }
+
+      // 导入处理器
+      int importedCount = 0;
+      for (final processorConfig in processors) {
+        if (processorConfig is Map<String, dynamic>) {
+          // 始终生成新的 instanceId 避免 GlobalKey 冲突
+          // 即使是覆盖模式，也需要新 ID，因为旧 widget 可能还未完全销毁
+          final modifiedConfig = Map<String, dynamic>.from(processorConfig);
+          modifiedConfig.remove('instanceId');
+          final processor = ProcessorFactory.fromConfig(modifiedConfig);
+          if (processor != null) {
+            _chain.add(processor);
+            importedCount++;
+            debugPrint(
+              '[Pipeline] Added processor: ${processor.displayName} (id: ${processor.instanceId})',
+            );
+          }
+        }
+      }
+
+      debugPrint(
+        '[Pipeline] Import complete. Total processors now: ${_chain.length}',
+      );
+
+      if (importedCount > 0) {
+        _hasUnappliedChanges = true;
+      }
+
+      notifyListeners();
+      return importedCount;
+    } catch (e) {
+      _errorMessage = '导入失败: $e';
+      notifyListeners();
+      return -1;
+    }
   }
 }

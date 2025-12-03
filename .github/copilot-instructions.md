@@ -288,17 +288,29 @@ flutter build windows     # Release 构建
   - `PipelineManagerModal` - 流水线管理弹窗，添加/删除/重排序处理器
   - `ProcessorStepEditor` - 处理器参数编辑器，根据参数类型自动生成输入控件
   - `ColorPickerButton` - HSV 通用颜色选择器
+  - `PerImageOverrideEditor` - 单图参数覆盖编辑器 (2025-12-03)
 - **HSV 颜色选择器:**
   - 饱和度-亮度 2D 选择区 (CustomPainter)
   - 色相滑块 (彩虹渐变)
   - Alpha 透明度滑块
   - Hex 输入框 (#AARRGGBB 格式)
   - RGB ↔ HSV 双向转换
+- **Per-Image Fine-tuning (2025-12-03):**
+  - 集成在 Preview Modal 右侧可折叠面板
+  - 仅显示 `supportsPerImageOverride = true` 的参数
+  - Override 复选框启用/禁用单图覆盖
+  - 覆盖参数存储在 `SlicePreview.processorOverrides`
+  - "预览处理效果" 按钮实时预览处理结果
+- **Pipeline Import/Export (2025-12-03):**
+  - JSON 格式导入/导出 Pipeline 配置
+  - 仅导出处理器配置，不含单图覆盖参数
+  - 导入时支持覆盖/追加模式
+  - `_ensureUniqueName()` 自动处理重名 (添加 -2, -3 后缀)
+  - 导入时始终生成新的 `instanceId` 避免 GlobalKey 冲突
+  - UI 入口: `PipelineManagerModal` 标题栏导入/导出图标按钮
 - **待实现功能:**
   - [ ] 处理器实际图像处理逻辑
-  - [ ] Per-Image 参数覆盖 UI (在 Preview Modal 中)
-  - [ ] Pipeline 配置持久化到 TOML
-  - [ ] 单图预览处理效果
+  - [ ] Pipeline 配置持久化到 TOML (Session 自动保存)
 
 ---
 

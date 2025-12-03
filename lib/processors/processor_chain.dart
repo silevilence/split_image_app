@@ -168,11 +168,36 @@ class ProcessorChain {
     return '${type.displayName}-${existingCount + 1}';
   }
 
+  /// 生成唯一的显示名称
+  ///
+  /// 如果名称已存在，自动添加数字后缀（如 "Name" -> "Name-2"）
+  String _ensureUniqueName(String baseName) {
+    // 检查是否已有同名的处理器
+    final existingNames = _processors.map((p) => p.customName).toSet();
+
+    if (!existingNames.contains(baseName)) {
+      return baseName;
+    }
+
+    // 找到不重复的名称
+    int suffix = 2;
+    String newName;
+    do {
+      newName = '$baseName-$suffix';
+      suffix++;
+    } while (existingNames.contains(newName));
+
+    return newName;
+  }
+
   /// 添加处理器到末尾
   void add(ImageProcessor processor) {
     // 如果没有自定义名称，生成自动名称
     if (processor.customName.isEmpty) {
       processor.customName = _generateAutoName(processor.type);
+    } else {
+      // 有自定义名称时，确保名称唯一
+      processor.customName = _ensureUniqueName(processor.customName);
     }
     _processors.add(processor);
   }
@@ -181,6 +206,8 @@ class ProcessorChain {
   void insert(int index, ImageProcessor processor) {
     if (processor.customName.isEmpty) {
       processor.customName = _generateAutoName(processor.type);
+    } else {
+      processor.customName = _ensureUniqueName(processor.customName);
     }
     _processors.insert(index.clamp(0, _processors.length), processor);
   }

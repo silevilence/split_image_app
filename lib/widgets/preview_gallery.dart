@@ -22,7 +22,7 @@ class _PreviewGalleryState extends State<PreviewGallery> {
   bool? _dragSelectValue; // 拖拽时要设置的选中状态
   int? _dragStartIndex; // 拖拽起始索引
   int? _lastDragIndex; // 上次拖拽经过的索引
-  
+
   // 滚动控制器和自动滚动
   final ScrollController _scrollController = ScrollController();
   double? _dragPointerY; // 当前拖拽指针的 Y 坐标
@@ -53,12 +53,18 @@ class _PreviewGalleryState extends State<PreviewGallery> {
       onSuffixChanged: (idx, suffix) {
         previewProvider.updateSliceSuffix(idx, suffix);
       },
+      onOverridesChanged: (sliceIndex, processorId, params) {
+        previewProvider.setSliceOverrides(sliceIndex, processorId, params);
+      },
     );
   }
 
   /// 处理拖拽时的自动滚动
   void _handleAutoScroll() {
-    if (!_isDragging || _dragPointerY == null || _listTop == null || _listBottom == null) {
+    if (!_isDragging ||
+        _dragPointerY == null ||
+        _listTop == null ||
+        _listBottom == null) {
       return;
     }
 
@@ -69,17 +75,22 @@ class _PreviewGalleryState extends State<PreviewGallery> {
 
     if (distanceFromTop < _scrollEdgeThreshold && distanceFromTop >= 0) {
       // 靠近顶部，向上滚动
-      scrollDelta = -_scrollSpeed * (1 - distanceFromTop / _scrollEdgeThreshold);
-    } else if (distanceFromBottom < _scrollEdgeThreshold && distanceFromBottom >= 0) {
+      scrollDelta =
+          -_scrollSpeed * (1 - distanceFromTop / _scrollEdgeThreshold);
+    } else if (distanceFromBottom < _scrollEdgeThreshold &&
+        distanceFromBottom >= 0) {
       // 靠近底部，向下滚动
-      scrollDelta = _scrollSpeed * (1 - distanceFromBottom / _scrollEdgeThreshold);
+      scrollDelta =
+          _scrollSpeed * (1 - distanceFromBottom / _scrollEdgeThreshold);
     }
 
     if (scrollDelta != 0 && _scrollController.hasClients) {
-      final newOffset = (_scrollController.offset + scrollDelta)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      final newOffset = (_scrollController.offset + scrollDelta).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
       _scrollController.jumpTo(newOffset);
-      
+
       // 持续滚动
       if (_isDragging) {
         Future.delayed(const Duration(milliseconds: 16), _handleAutoScroll);
@@ -115,25 +126,23 @@ class _PreviewGalleryState extends State<PreviewGallery> {
         _buildSelectionBar(theme, provider),
         const SizedBox(height: 8),
         // 切片网格
-        Expanded(
-          child: _buildSliceGrid(provider),
-        ),
+        Expanded(child: _buildSliceGrid(provider)),
       ],
     );
   }
 
   /// 生成中状态
-  Widget _buildGeneratingState(FluentThemeData theme, PreviewProvider provider) {
+  Widget _buildGeneratingState(
+    FluentThemeData theme,
+    PreviewProvider provider,
+  ) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const ProgressRing(),
           const SizedBox(height: 16),
-          Text(
-            '正在生成预览...',
-            style: theme.typography.body,
-          ),
+          Text('正在生成预览...', style: theme.typography.body),
           const SizedBox(height: 8),
           SizedBox(
             width: 200,
@@ -157,24 +166,15 @@ class _PreviewGalleryState extends State<PreviewGallery> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            FluentIcons.error,
-            size: 32,
-            color: Colors.red,
-          ),
+          Icon(FluentIcons.error, size: 32, color: Colors.red),
           const SizedBox(height: 12),
           Text(
             provider.errorMessage!,
-            style: theme.typography.body?.copyWith(
-              color: Colors.red,
-            ),
+            style: theme.typography.body?.copyWith(color: Colors.red),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          Button(
-            onPressed: provider.clearError,
-            child: const Text('关闭'),
-          ),
+          Button(onPressed: provider.clearError, child: const Text('关闭')),
         ],
       ),
     );
@@ -226,10 +226,7 @@ class _PreviewGalleryState extends State<PreviewGallery> {
         ),
         const SizedBox(width: 4),
         // 反选按钮
-        Button(
-          onPressed: provider.invertSelection,
-          child: const Text('反选'),
-        ),
+        Button(onPressed: provider.invertSelection, child: const Text('反选')),
       ],
     );
   }
@@ -279,12 +276,18 @@ class _PreviewGalleryState extends State<PreviewGallery> {
               return MouseRegion(
                 onEnter: (_) {
                   // 只有在按住鼠标拖拽时才触发连续选中
-                  if (_isDragging && _dragSelectValue != null && _dragStartIndex != null) {
+                  if (_isDragging &&
+                      _dragSelectValue != null &&
+                      _dragStartIndex != null) {
                     if (_lastDragIndex != index) {
                       _lastDragIndex = index;
                       // 计算起止范围，设置范围内所有项
-                      final start = _dragStartIndex! < index ? _dragStartIndex! : index;
-                      final end = _dragStartIndex! > index ? _dragStartIndex! : index;
+                      final start = _dragStartIndex! < index
+                          ? _dragStartIndex!
+                          : index;
+                      final end = _dragStartIndex! > index
+                          ? _dragStartIndex!
+                          : index;
                       for (int i = start; i <= end; i++) {
                         provider.setSliceSelection(i, _dragSelectValue!);
                       }
