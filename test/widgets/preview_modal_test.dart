@@ -51,7 +51,11 @@ void main() {
     });
 
     test('should create with custom suffix', () {
-      final slice = createTestSlice(row: 0, col: 0, customSuffix: 'custom_name');
+      final slice = createTestSlice(
+        row: 0,
+        col: 0,
+        customSuffix: 'custom_name',
+      );
       expect(slice.customSuffix, equals('custom_name'));
       expect(slice.defaultSuffix, equals('1_1'));
     });
@@ -64,9 +68,14 @@ void main() {
     });
 
     test('copyWith should preserve values', () {
-      final original = createTestSlice(row: 1, col: 2, isSelected: true, customSuffix: 'test');
+      final original = createTestSlice(
+        row: 1,
+        col: 2,
+        isSelected: true,
+        customSuffix: 'test',
+      );
       final copied = original.copyWith(isSelected: false);
-      
+
       expect(copied.row, equals(1));
       expect(copied.col, equals(2));
       expect(copied.isSelected, equals(false));
@@ -76,7 +85,7 @@ void main() {
     test('copyWith should update suffix', () {
       final original = createTestSlice(customSuffix: 'old');
       final copied = original.copyWith(customSuffix: 'new');
-      
+
       expect(copied.customSuffix, equals('new'));
       expect(original.customSuffix, equals('old')); // Original unchanged
     });
@@ -84,7 +93,11 @@ void main() {
 
   group('SliceItem Widget Tests', () {
     testWidgets('should display slice information', (tester) async {
-      final slice = createTestSlice(row: 0, col: 0, customSuffix: 'test_suffix');
+      final slice = createTestSlice(
+        row: 0,
+        col: 0,
+        customSuffix: 'test_suffix',
+      );
 
       await tester.pumpWidget(
         FluentApp(
@@ -92,10 +105,7 @@ void main() {
             content: Center(
               child: SizedBox(
                 width: 300,
-                child: SliceItem(
-                  slice: slice,
-                  isSelected: true,
-                ),
+                child: SliceItem(slice: slice, isSelected: true),
               ),
             ),
           ),
@@ -108,7 +118,9 @@ void main() {
       expect(find.text('100 × 100 px'), findsOneWidget);
     });
 
-    testWidgets('should trigger selection toggle on checkbox area click', (tester) async {
+    testWidgets('should trigger selection toggle on checkbox area click', (
+      tester,
+    ) async {
       final slice = createTestSlice(isSelected: true);
       bool? toggledValue;
 
@@ -132,7 +144,7 @@ void main() {
       // 点击勾选框区域（Checkbox 被包裹在 Listener 中）
       final checkbox = find.byType(Checkbox);
       expect(checkbox, findsOneWidget);
-      
+
       // 由于 Checkbox 被 IgnorePointer 包裹，我们需要点击其父组件
       // 这里我们通过点击图片来触发选择
       await tester.tap(find.byType(Image).first);
@@ -173,7 +185,9 @@ void main() {
       expect(iconButton, findsOneWidget);
     });
 
-    testWidgets('should show context menu items on right click', (tester) async {
+    testWidgets('should show context menu items on right click', (
+      tester,
+    ) async {
       final slice = createTestSlice();
 
       await tester.pumpWidget(
@@ -182,10 +196,7 @@ void main() {
             content: Center(
               child: SizedBox(
                 width: 300,
-                child: SliceItem(
-                  slice: slice,
-                  isSelected: true,
-                ),
+                child: SliceItem(slice: slice, isSelected: true),
               ),
             ),
           ),
@@ -301,9 +312,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final slices = [
-        createTestSlice(isSelected: true),
-      ];
+      final slices = [createTestSlice(isSelected: true)];
       bool? selectionChanged;
       int? changedIndex;
 
@@ -350,9 +359,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final slices = [
-        createTestSlice(customSuffix: 'original'),
-      ];
+      final slices = [createTestSlice(customSuffix: 'original')];
       String? newSuffix;
       int? changedIndex;
 
