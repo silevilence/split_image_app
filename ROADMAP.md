@@ -20,9 +20,10 @@ SmartGridSlicer 是一款 Windows 桌面工具，用于将贴纸图集 (Sticker 
 
 # 🗂️ 新功能看板 (Kanban Board)
 
-## 🚧 开发中 (In Progress)
+## ✅ 已完成 (Completed)
 
 ### Feature: 🖼️ Image Processing Pipeline (图片后处理流水线)
+**完成日期:** 2025-12-03
 
 #### 📝 Description
 允许用户对切割后的图片进行一系列自动化处理。采用策略模式扩展架构，支持动态组合处理链，并提供全局参数与单图参数的覆盖机制。
@@ -103,7 +104,8 @@ test/
 - 勾选后可单独调整该图的参数
 - "预览处理效果" 按钮查看单图效果
 
-#### 🧩 4. Standard Processors (内置处理器) 📅
+#### 🧩 4. Standard Processors (内置处理器) ✅
+**状态:** 已完成 (2025-12-03)
 
 | Processor | 描述 | Global Params | Per-Image Params |
 |-----------|------|---------------|------------------|
@@ -112,7 +114,7 @@ test/
 | **Color Replace** | 指定颜色替换 | Target Color, New Color | Threshold |
 | **Resize** | 强制缩放 | Width/Height + Unit | - |
 
-#### 📋 待完成 Checklist
+#### ✅ 已完成 Checklist
 
 **Pipeline UI:**
 - [x] 创建 Pipeline 概要显示组件
@@ -138,12 +140,11 @@ test/
 - [x] 实现 `SmartCropProcessor` 参数定义
 - [x] 实现 `ColorReplaceProcessor` 参数定义
 - [x] 实现 `ResizeProcessor` 参数定义
-- [ ] 实现处理器实际图像处理逻辑 (process 方法)
+- [x] 实现处理器实际图像处理逻辑 (process 方法)
 
-**Persistence:**
-- [ ] 扩展 `AppConfig` 支持 Pipeline 配置
-- [ ] 实现 Pipeline 序列化/反序列化
-- [ ] Session 状态管理
+**Integration:**
+- [x] Pipeline 预览弹窗 (应用按钮触发)
+- [x] 导出时自动应用 Pipeline 处理
 
 #### 📁 已产出文件 (UI & Processors)
 ```
@@ -151,20 +152,24 @@ lib/
 ├── widgets/
 │   ├── pipeline_summary.dart         # ✅ Pipeline 概要显示
 │   ├── pipeline_manager_modal.dart   # ✅ Pipeline 编辑弹窗 (含导入/导出)
+│   ├── pipeline_preview_modal.dart   # ✅ Pipeline 预览弹窗 (应用后查看效果)
 │   ├── processor_step_editor.dart    # ✅ 步骤参数编辑器
 │   ├── color_picker_button.dart      # ✅ HSV 颜色选择器
 │   ├── preview_modal.dart            # ✅ 更新: 添加 Per-Image 微调面板
 │   └── per_image_override_editor.dart # ✅ 单图参数覆盖编辑器
+├── processors/
+│   ├── background_removal_processor.dart  # ✅ Flood Fill 背景去除
+│   ├── smart_crop_processor.dart          # ✅ 四边像素裁剪
+│   ├── color_replace_processor.dart       # ✅ RGB 距离颜色替换
+│   └── resize_processor.dart              # ✅ 双线性插值缩放
+└── utils/
+    └── image_processor.dart               # ✅ 更新: 支持处理后像素数据导出
+test/
 └── processors/
-    ├── background_removal_processor.dart  # ✅ 参数定义完成，处理逻辑待实现
-    ├── smart_crop_processor.dart          # ✅ 参数定义完成，处理逻辑待实现
-    ├── color_replace_processor.dart       # ✅ 参数定义完成，处理逻辑待实现
-    └── resize_processor.dart              # ✅ 参数定义完成，处理逻辑待实现
+    └── processor_implementation_test.dart # ✅ 处理器单元测试 (15 tests)
 ```
 
 ---
-
-## ✅ 已完成 (Completed)
 
 ### Workflow: 🔍 Enhanced Preview Modal (增强型预览/右键菜单)
 **完成日期:** 2025-12-01
@@ -451,127 +456,6 @@ lib/
 
 ---
 
-## 📅 计划开发 (Planned)
-
-### Feature: 🖼️ Image Processing Pipeline (图片后处理流水线)
-
-#### 📝 Description
-允许用户对切割后的图片进行一系列自动化处理。采用策略模式扩展架构，支持动态组合处理链，并提供全局参数与单图参数的覆盖机制。
-
-#### 🏗️ 1. Pipeline Architecture (核心架构)
-
-**设计模式:**
-- 扩展策略模式 (Strategy Pattern)
-- 设计 `ImageProcessor` 基类，支持动态组合处理链 (Chain of Responsibility)
-
-**参数逻辑 (Crucial):**
-- **Global Parameters (方法级参数):** 如缩放算法、替换颜色等，应用于所有图片
-- **Per-Image Parameters (特定图片参数):** 如裁剪边距、颜色阈值等，可针对单张图片覆盖
-- **Override Mechanism:** 每张图片对象存储 `Map<StepID, OverriddenParams>`，无覆盖时使用 Pipeline 默认值
-
-**状态管理:**
-- 默认无处理 (Empty Pipeline)
-- 设置需持久化到配置文件
-- Session 期间不随重新切图重置
-
-#### 🎛️ 2. UI: Pipeline Management (全局管理)
-
-**位置:** 侧边栏 "Settings" 和 "Preview" 区域之间
-
-**显示内容:**
-- 当前处理链概要（如 "3 Steps Active"）
-- 控制按钮组
-
-**交互功能:**
-- **"Edit Pipeline" Button:** 弹出 Manager Modal 大窗口
-- **Manager Modal 功能:**
-  - 添加/删除处理步骤
-  - 拖拽重排序 (Reorder)
-  - 步骤重命名（支持同类方法自动命名如 `Crop-1`, `Crop-2`）
-  - 编辑每个步骤的全局参数
-- **"Re-apply" Button:** 修改设置后**不会**自动生效，需手动点击触发重新渲染 (防卡顿)
-
-#### 🖼️ 3. UI: Per-Image Fine-tuning (单图微调)
-
-**位置:** 集成在 Enhanced Preview Modal (大图预览窗) 中
-
-**功能:**
-- 右侧面板显示当前 Pipeline 的所有步骤
-- 针对支持 Per-Image 的参数提供 "Override" 复选框
-- 勾选后可单独调整该图的参数
-- "Preview This Image" 按钮查看单图效果
-
-#### 🧩 4. Standard Processors (内置处理器)
-
-| Processor | 描述 | Global Params | Per-Image Params |
-|-----------|------|---------------|------------------|
-| **Background Removal** | 基于角落的魔棒算法移除背景 | 阈值, 替换色/透明 | - |
-| **Smart Crop** | 边缘裁剪 | - | Margin (Top/Bottom/Left/Right) |
-| **Color Replace** | 指定颜色替换 | Target Color, New Color | Threshold |
-| **Resize** | 强制缩放 | Width/Height + Unit | - |
-
-#### ✅ Checklist
-
-**Architecture:**
-- [ ] 设计 `ImageProcessor` 抽象基类
-- [ ] 实现 `ProcessorChain` 责任链管理器
-- [ ] 定义 `ProcessorInput` / `ProcessorOutput` 数据模型
-- [ ] 实现参数覆盖机制 (Override Mechanism)
-- [ ] 扩展 `SlicePreview` 模型支持 per-image overrides
-
-**Pipeline UI:**
-- [ ] 创建 Pipeline 概要显示组件
-- [ ] 实现 Pipeline Manager Modal
-- [ ] 添加步骤 Add/Delete/Reorder 功能
-- [ ] 实现步骤重命名与自动命名
-- [ ] 添加 "Re-apply" 按钮逻辑
-
-**Per-Image UI:**
-- [ ] 扩展 Preview Modal 添加 Pipeline 面板
-- [ ] 实现 Override 复选框组件
-- [ ] 实现单图预览功能
-
-**Processors:**
-- [x] 实现 `BackgroundRemovalProcessor` 参数定义
-- [x] 实现 `SmartCropProcessor` 参数定义
-- [x] 实现 `ColorReplaceProcessor` 参数定义
-- [x] 实现 `ResizeProcessor` 参数定义
-- [ ] 实现处理器实际图像处理逻辑 (process 方法)
-
-**Persistence:**
-- [ ] 扩展 `AppConfig` 支持 Pipeline 配置
-- [ ] 实现 Pipeline 序列化/反序列化
-- [ ] Session 状态管理
-
-#### 📁 预计产出文件
-```
-lib/
-├── models/
-│   ├── processor_config.dart         # Pipeline 配置模型
-│   ├── processor_step.dart           # 处理步骤模型
-│   └── slice_preview.dart            # 更新: 添加 overrides
-├── processors/
-│   ├── image_processor.dart          # 抽象基类
-│   ├── processor_chain.dart          # 责任链管理器
-│   ├── background_removal_processor.dart
-│   ├── smart_crop_processor.dart
-│   ├── color_replace_processor.dart
-│   └── resize_processor.dart
-├── providers/
-│   ├── pipeline_provider.dart        # 新增: Pipeline 状态管理
-│   └── preview_provider.dart         # 更新: 集成 Pipeline
-├── widgets/
-│   ├── pipeline_summary.dart         # Pipeline 概要显示
-│   ├── pipeline_manager_modal.dart   # Pipeline 编辑弹窗
-│   ├── processor_step_editor.dart    # 步骤参数编辑器
-│   ├── preview_modal.dart            # 更新: 添加 Per-Image 微调
-│   └── preview_panel.dart            # 更新: 集成 Pipeline 概要
-└── services/
-    └── config_service.dart           # 更新: Pipeline 持久化
-```
-
----
-
 ## 🎯 新功能里程碑概览
 
 | Feature | 优先级 | 预计工时 | 依赖 | 状态 |
@@ -584,7 +468,7 @@ lib/
 | 边缘检测算法 | 🟡 中 | 2-3h | Architecture | ✅ 已完成 |
 | Resizable Control Panel | 🟡 中 | 2-3h | - | ✅ 已完成 |
 | Enhanced Preview Modal | 🟡 中 | 3-4h | - | ✅ 已完成 |
-| **Image Processing Pipeline** | 🔴 高 | 8-12h | Enhanced Preview Modal | 📅 计划中 |
+| **Image Processing Pipeline** | 🔴 高 | 8-12h | Enhanced Preview Modal | ✅ 已完成 |
 | GitHub Actions & Release | 🟢 低 | 2-3h | - | ✅ 已完成 |
 
 ---

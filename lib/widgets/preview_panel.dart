@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../processors/processor_io.dart';
 import '../providers/editor_provider.dart';
 import '../providers/pipeline_provider.dart';
 import '../providers/preview_provider.dart';
@@ -11,6 +14,7 @@ import '../shortcuts/shortcut_wrapper.dart';
 import '../utils/image_processor.dart';
 import 'export_dialog.dart';
 import 'margins_input.dart';
+import 'pipeline_preview_modal.dart';
 import 'pipeline_summary.dart';
 import 'preview_gallery.dart';
 import 'progress_dialog.dart';
@@ -350,22 +354,44 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   /// 应用图片处理流水线
   Future<void> _applyPipeline() async {
+    final previewProvider = context.read<PreviewProvider>();
     final pipelineProvider = context.read<PipelineProvider>();
 
-    // TODO: 实现实际的图片处理逻辑
-    // 目前先标记更改已应用
-    pipelineProvider.markChangesApplied();
+    // 检查是否有切片预览
+    if (!previewProvider.hasPreview) {
+      if (mounted) {
+        await displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('无切片预览'),
+            content: const Text('请先生成切片预览'),
+            severity: InfoBarSeverity.warning,
+            onClose: close,
+          ),
+        );
+      }
+      return;
+    }
 
+    // 检查是否有处理器
+    if (!pipelineProvider.hasProcessors) {
+      if (mounted) {
+        await displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('无处理器'),
+            content: const Text('请先配置图片处理器'),
+            severity: InfoBarSeverity.warning,
+            onClose: close,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 显示预览弹窗
     if (mounted) {
-      await displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('处理完成'),
-          content: const Text('图片处理流水线已应用'),
-          severity: InfoBarSeverity.success,
-          onClose: close,
-        ),
-      );
+      await PipelinePreviewModal.show(context);
     }
   }
 
@@ -534,6 +560,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
   Future<void> _exportSlices() async {
     final editorProvider = context.read<EditorProvider>();
     final previewProvider = context.read<PreviewProvider>();
+    final pipelineProvider = context.read<PipelineProvider>();
 
     // 检查是否有选中的切片
     final selectedSlices = previewProvider.slices
@@ -569,18 +596,125 @@ class _PreviewPanelState extends State<PreviewPanel> {
     // 读取原图字节数据
     final imageBytes = await editorProvider.imageFile!.readAsBytes();
 
-    // 构建导出任务
-    final exportSlices = selectedSlices
-        .map(
-          (slice) => ExportSlice(
-            x: slice.region.left.toInt(),
-            y: slice.region.top.toInt(),
-            width: slice.region.width.toInt(),
-            height: slice.region.height.toInt(),
-            suffix: slice.customSuffix,
+    // 检查是否需要应用 Pipeline 处理
+    final hasPipeline = pipelineProvider.hasProcessors;
+
+    List<ExportSlice> exportSlices;
+
+    if (hasPipeline) {
+      // 显示处理进度
+      if (mounted) {
+        await displayInfoBar(
+          context,
+          builder: (context, close) => const InfoBar(
+            title: Text('正在应用处理流水线...'),
+            severity: InfoBarSeverity.info,
           ),
-        )
-        .toList();
+          duration: const Duration(milliseconds: 500),
+        );
+      }
+
+      // 读取源图片
+      final codec = await ui.instantiateImageCodec(imageBytes);
+      final frame = await codec.getNextFrame();
+      final sourceImage = frame.image;
+
+      exportSlices = [];
+
+      for (int i = 0; i < selectedSlices.length; i++) {
+        final slice = selectedSlices[i];
+        final region = slice.region;
+        final width = region.width.toInt();
+        final height = region.height.toInt();
+
+        // 使用 Canvas 裁剪切片
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+
+        canvas.drawImageRect(
+          sourceImage,
+          region,
+          Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+          Paint(),
+        );
+
+        final picture = recorder.endRecording();
+        final sliceImage = await picture.toImage(width, height);
+        picture.dispose();
+
+        // 转换为 RGBA 像素数据
+        final byteData = await sliceImage.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        sliceImage.dispose();
+
+        if (byteData == null) {
+          // 无法读取像素数据，使用原始区域
+          exportSlices.add(
+            ExportSlice(
+              x: region.left.toInt(),
+              y: region.top.toInt(),
+              width: width,
+              height: height,
+              suffix: slice.customSuffix,
+            ),
+          );
+          continue;
+        }
+
+        // 创建 ProcessorInput
+        final sliceIndex = previewProvider.slices.indexOf(slice);
+        final input = ProcessorInput(
+          pixels: byteData.buffer.asUint8List(),
+          width: width,
+          height: height,
+          sliceIndex: sliceIndex,
+          row: slice.row,
+          col: slice.col,
+        );
+
+        // 执行 Pipeline 处理
+        final output = await pipelineProvider.processImage(
+          input,
+          sliceIndex: sliceIndex,
+        );
+
+        // 使用处理后的数据
+        final outputPixels = output.pixels.isNotEmpty
+            ? output.pixels
+            : input.pixels;
+        final outputWidth = output.width > 0 ? output.width : input.width;
+        final outputHeight = output.height > 0 ? output.height : input.height;
+
+        exportSlices.add(
+          ExportSlice(
+            x: region.left.toInt(),
+            y: region.top.toInt(),
+            width: width,
+            height: height,
+            suffix: slice.customSuffix,
+            processedPixels: outputPixels,
+            processedWidth: outputWidth,
+            processedHeight: outputHeight,
+          ),
+        );
+      }
+
+      sourceImage.dispose();
+    } else {
+      // 无 Pipeline，直接使用原始区域
+      exportSlices = selectedSlices
+          .map(
+            (slice) => ExportSlice(
+              x: slice.region.left.toInt(),
+              y: slice.region.top.toInt(),
+              width: slice.region.width.toInt(),
+              height: slice.region.height.toInt(),
+              suffix: slice.customSuffix,
+            ),
+          )
+          .toList();
+    }
 
     final task = ExportTask(
       imageBytes: imageBytes,

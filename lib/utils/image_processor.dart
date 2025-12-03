@@ -44,7 +44,9 @@ class ExportTask {
   static ExportTask fromMap(Map<String, dynamic> map) {
     return ExportTask(
       imageBytes: map['imageBytes'] as Uint8List,
-      slices: (map['slices'] as List).map((s) => ExportSlice.fromMap(s as Map<String, dynamic>)).toList(),
+      slices: (map['slices'] as List)
+          .map((s) => ExportSlice.fromMap(s as Map<String, dynamic>))
+          .toList(),
       outputDir: map['outputDir'] as String,
       prefix: map['prefix'] as String,
       format: map['format'] as String? ?? 'png',
@@ -63,13 +65,29 @@ class ExportSlice {
   /// 文件后缀名
   final String suffix;
 
+  /// 已处理的像素数据（RGBA 格式）
+  /// 如果为 null，则从原图裁剪
+  final Uint8List? processedPixels;
+
+  /// 处理后的宽度（仅当 processedPixels 不为 null 时有效）
+  final int? processedWidth;
+
+  /// 处理后的高度（仅当 processedPixels 不为 null 时有效）
+  final int? processedHeight;
+
   ExportSlice({
     required this.x,
     required this.y,
     required this.width,
     required this.height,
     required this.suffix,
+    this.processedPixels,
+    this.processedWidth,
+    this.processedHeight,
   });
+
+  /// 是否有处理后的数据
+  bool get hasProcessedData => processedPixels != null;
 
   Map<String, dynamic> toMap() {
     return {
@@ -78,6 +96,9 @@ class ExportSlice {
       'width': width,
       'height': height,
       'suffix': suffix,
+      'processedPixels': processedPixels,
+      'processedWidth': processedWidth,
+      'processedHeight': processedHeight,
     };
   }
 
@@ -88,6 +109,9 @@ class ExportSlice {
       width: map['width'] as int,
       height: map['height'] as int,
       suffix: map['suffix'] as String,
+      processedPixels: map['processedPixels'] as Uint8List?,
+      processedWidth: map['processedWidth'] as int?,
+      processedHeight: map['processedHeight'] as int?,
     );
   }
 }
@@ -146,14 +170,11 @@ class ImageProcessor {
   /// 返回一个 Stream，用于接收进度更新
   static Stream<ExportProgress> exportSlices(ExportTask task) async* {
     final receivePort = ReceivePort();
-    
-    await Isolate.spawn(
-      _exportIsolate,
-      {
-        'sendPort': receivePort.sendPort,
-        'task': task.toMap(),
-      },
-    );
+
+    await Isolate.spawn(_exportIsolate, {
+      'sendPort': receivePort.sendPort,
+      'task': task.toMap(),
+    });
 
     await for (final message in receivePort) {
       if (message is Map<String, dynamic>) {
@@ -173,22 +194,34 @@ class ImageProcessor {
     final task = ExportTask.fromMap(message['task'] as Map<String, dynamic>);
 
     try {
-      // 解码原图
-      final image = img.decodeImage(task.imageBytes);
-      if (image == null) {
-        sendPort.send(ExportProgress(
-          current: 0,
-          total: task.slices.length,
-          error: '无法解码图片',
-        ).toMap());
-        return;
+      // 解码原图（仅当有未处理的切片时需要）
+      img.Image? image;
+      int imageWidth = 0;
+      int imageHeight = 0;
+
+      // 检查是否有需要从原图裁剪的切片
+      final needsOriginal = task.slices.any((s) => !s.hasProcessedData);
+      if (needsOriginal) {
+        image = img.decodeImage(task.imageBytes);
+        if (image == null) {
+          sendPort.send(
+            ExportProgress(
+              current: 0,
+              total: task.slices.length,
+              error: '无法解码图片',
+            ).toMap(),
+          );
+          return;
+        }
+        imageWidth = image.width;
+        imageHeight = image.height;
       }
 
       final total = task.slices.length;
 
       for (var i = 0; i < task.slices.length; i++) {
         final slice = task.slices[i];
-        
+
         // 生成文件名
         final ext = task.format.toLowerCase();
         final fileName = task.prefix.isEmpty
@@ -197,48 +230,99 @@ class ImageProcessor {
         final filePath = '${task.outputDir}${Platform.pathSeparator}$fileName';
 
         // 发送进度
-        sendPort.send(ExportProgress(
-          current: i,
-          total: total,
-          currentFile: fileName,
-        ).toMap());
-
-        // 裁剪图片
-        final cropped = img.copyCrop(
-          image,
-          x: slice.x,
-          y: slice.y,
-          width: slice.width,
-          height: slice.height,
+        sendPort.send(
+          ExportProgress(
+            current: i,
+            total: total,
+            currentFile: fileName,
+          ).toMap(),
         );
+
+        img.Image imageToSave;
+
+        if (slice.hasProcessedData) {
+          // 使用处理后的像素数据
+          final w = slice.processedWidth!;
+          final h = slice.processedHeight!;
+          final pixels = slice.processedPixels!;
+
+          // 从 RGBA 像素数据创建图片
+          imageToSave = img.Image(width: w, height: h);
+          for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+              final offset = (y * w + x) * 4;
+              imageToSave.setPixelRgba(
+                x,
+                y,
+                pixels[offset], // R
+                pixels[offset + 1], // G
+                pixels[offset + 2], // B
+                pixels[offset + 3], // A
+              );
+            }
+          }
+        } else {
+          // 从原图裁剪
+          if (image == null) {
+            continue; // 不应该发生
+          }
+
+          // 边界检查和修正
+          int x = slice.x.clamp(0, imageWidth - 1);
+          int y = slice.y.clamp(0, imageHeight - 1);
+          int width = slice.width;
+          int height = slice.height;
+
+          // 确保不超出图片边界
+          if (x + width > imageWidth) {
+            width = imageWidth - x;
+          }
+          if (y + height > imageHeight) {
+            height = imageHeight - y;
+          }
+
+          // 确保尺寸有效
+          if (width <= 0 || height <= 0) {
+            continue; // 跳过无效切片
+          }
+
+          // 裁剪图片
+          imageToSave = img.copyCrop(
+            image,
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+          );
+        }
 
         // 根据格式编码
         late List<int> encodedBytes;
         switch (task.format.toLowerCase()) {
           case 'jpg':
           case 'jpeg':
-            encodedBytes = img.encodeJpg(cropped, quality: 95);
+            encodedBytes = img.encodeJpg(imageToSave, quality: 95);
             break;
           case 'png':
           default:
-            encodedBytes = img.encodePng(cropped);
+            encodedBytes = img.encodePng(imageToSave);
             break;
         }
         File(filePath).writeAsBytesSync(encodedBytes);
       }
 
       // 完成
-      sendPort.send(ExportProgress(
-        current: total,
-        total: total,
-        isComplete: true,
-      ).toMap());
-    } catch (e) {
-      sendPort.send(ExportProgress(
-        current: 0,
-        total: task.slices.length,
-        error: e.toString(),
-      ).toMap());
+      sendPort.send(
+        ExportProgress(current: total, total: total, isComplete: true).toMap(),
+      );
+    } catch (e, stackTrace) {
+      sendPort.send(
+        ExportProgress(
+          current: 0,
+          total: task.slices.length,
+          error: '导出失败: $e\n$stackTrace',
+        ).toMap(),
+      );
     }
   }
 }

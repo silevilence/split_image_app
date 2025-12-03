@@ -308,9 +308,46 @@ flutter build windows     # Release 构建
   - `_ensureUniqueName()` 自动处理重名 (添加 -2, -3 后缀)
   - 导入时始终生成新的 `instanceId` 避免 GlobalKey 冲突
   - UI 入口: `PipelineManagerModal` 标题栏导入/导出图标按钮
-- **待实现功能:**
-  - [ ] 处理器实际图像处理逻辑
-  - [ ] Pipeline 配置持久化到 TOML (Session 自动保存)
+
+### Processor Implementations (2025-12-03)
+- **BackgroundRemovalProcessor:**
+  - 算法: 四角采样 + Queue-based Flood Fill
+  - 从四角采样背景颜色，使用 RGB 距离计算相似度
+  - 参数: `threshold` (0-255), `replaceColor` (ARGB)
+- **SmartCropProcessor (边缘裁剪):**
+  - 算法: 直接按用户指定的像素值裁剪四边
+  - 参数: `marginTop/Bottom/Left/Right` (像素值)
+  - 注意: 不做自动内容检测，完全按用户设置裁剪
+- **ColorReplaceProcessor:**
+  - 算法: RGB 颜色距离匹配
+  - 距离公式: `sqrt((r1-r2)² + (g1-g2)² + (b1-b2)²)` / 441.67 * 255
+  - 参数: `targetColor`, `newColor`, `threshold`
+- **ResizeProcessor:**
+  - 算法: 双线性插值 (Bilinear Interpolation)
+  - 采样 4 个相邻像素进行加权平均
+  - 参数: `width`, `height`, `unit` (pixel/percent)
+  - 支持只指定一个维度自动保持宽高比
+
+### Pipeline Preview Modal (2025-12-03)
+- **实现文件:** `lib/widgets/pipeline_preview_modal.dart`
+- **功能:** 应用按钮点击后弹出，显示所有切片处理后的效果
+- **流程:** 读取源图 → 裁剪切片 → 应用 Pipeline → 显示结果
+- **信息:** 显示处理前后尺寸变化 (如 100×100 → 80×80)
+
+### Export with Pipeline (2025-12-03)
+- **实现位置:** `lib/widgets/preview_panel.dart` `_exportSlices()`
+- **流程:**
+  1. 检测是否配置了处理器
+  2. 如有，先在主线程裁剪并应用 Pipeline 处理
+  3. 将处理后的像素数据传给 Isolate 保存
+- **ExportSlice 扩展:**
+  - `processedPixels`: 处理后的 RGBA 像素数据
+  - `processedWidth/Height`: 处理后的尺寸
+  - `hasProcessedData`: 是否有处理数据
+- **Isolate 处理:** 检测 `hasProcessedData`，有则直接使用处理后数据，无则从原图裁剪
+
+### 待实现功能
+- [ ] Pipeline 配置持久化到 TOML (Session 自动保存)
 
 ---
 

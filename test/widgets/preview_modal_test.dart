@@ -2,8 +2,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
 import 'package:split_image_app/models/slice_preview.dart';
+import 'package:split_image_app/providers/pipeline_provider.dart';
 import 'package:split_image_app/widgets/preview_modal.dart';
 import 'package:split_image_app/widgets/slice_item.dart';
 import 'package:fluent_ui/fluent_ui.dart';
@@ -217,15 +219,18 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        FluentApp(
-          home: ScaffoldPage(
-            content: Builder(
-              builder: (context) => Button(
-                child: const Text('Open Modal'),
-                onPressed: () => PreviewModal.show(
-                  context: context,
-                  slices: slices,
-                  initialIndex: 0,
+        ChangeNotifierProvider(
+          create: (_) => PipelineProvider(),
+          child: FluentApp(
+            home: ScaffoldPage(
+              content: Builder(
+                builder: (context) => Button(
+                  child: const Text('Open Modal'),
+                  onPressed: () => PreviewModal.show(
+                    context: context,
+                    slices: slices,
+                    initialIndex: 0,
+                  ),
                 ),
               ),
             ),
@@ -255,15 +260,18 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        FluentApp(
-          home: ScaffoldPage(
-            content: Builder(
-              builder: (context) => Button(
-                child: const Text('Open Modal'),
-                onPressed: () => PreviewModal.show(
-                  context: context,
-                  slices: slices,
-                  initialIndex: 0,
+        ChangeNotifierProvider(
+          create: (_) => PipelineProvider(),
+          child: FluentApp(
+            home: ScaffoldPage(
+              content: Builder(
+                builder: (context) => Button(
+                  child: const Text('Open Modal'),
+                  onPressed: () => PreviewModal.show(
+                    context: context,
+                    slices: slices,
+                    initialIndex: 0,
+                  ),
                 ),
               ),
             ),
@@ -300,19 +308,22 @@ void main() {
       int? changedIndex;
 
       await tester.pumpWidget(
-        FluentApp(
-          home: ScaffoldPage(
-            content: Builder(
-              builder: (context) => Button(
-                child: const Text('Open Modal'),
-                onPressed: () => PreviewModal.show(
-                  context: context,
-                  slices: slices,
-                  initialIndex: 0,
-                  onSelectionChanged: (index, isSelected) {
-                    changedIndex = index;
-                    selectionChanged = isSelected;
-                  },
+        ChangeNotifierProvider(
+          create: (_) => PipelineProvider(),
+          child: FluentApp(
+            home: ScaffoldPage(
+              content: Builder(
+                builder: (context) => Button(
+                  child: const Text('Open Modal'),
+                  onPressed: () => PreviewModal.show(
+                    context: context,
+                    slices: slices,
+                    initialIndex: 0,
+                    onSelectionChanged: (index, isSelected) {
+                      changedIndex = index;
+                      selectionChanged = isSelected;
+                    },
+                  ),
                 ),
               ),
             ),
@@ -346,19 +357,22 @@ void main() {
       int? changedIndex;
 
       await tester.pumpWidget(
-        FluentApp(
-          home: ScaffoldPage(
-            content: Builder(
-              builder: (context) => Button(
-                child: const Text('Open Modal'),
-                onPressed: () => PreviewModal.show(
-                  context: context,
-                  slices: slices,
-                  initialIndex: 0,
-                  onSuffixChanged: (index, suffix) {
-                    changedIndex = index;
-                    newSuffix = suffix;
-                  },
+        ChangeNotifierProvider(
+          create: (_) => PipelineProvider(),
+          child: FluentApp(
+            home: ScaffoldPage(
+              content: Builder(
+                builder: (context) => Button(
+                  child: const Text('Open Modal'),
+                  onPressed: () => PreviewModal.show(
+                    context: context,
+                    slices: slices,
+                    initialIndex: 0,
+                    onSuffixChanged: (index, suffix) {
+                      changedIndex = index;
+                      newSuffix = suffix;
+                    },
+                  ),
                 ),
               ),
             ),
@@ -388,15 +402,18 @@ void main() {
       final slices = [createTestSlice()];
 
       await tester.pumpWidget(
-        FluentApp(
-          home: ScaffoldPage(
-            content: Builder(
-              builder: (context) => Button(
-                child: const Text('Open Modal'),
-                onPressed: () => PreviewModal.show(
-                  context: context,
-                  slices: slices,
-                  initialIndex: 0,
+        ChangeNotifierProvider(
+          create: (_) => PipelineProvider(),
+          child: FluentApp(
+            home: ScaffoldPage(
+              content: Builder(
+                builder: (context) => Button(
+                  child: const Text('Open Modal'),
+                  onPressed: () => PreviewModal.show(
+                    context: context,
+                    slices: slices,
+                    initialIndex: 0,
+                  ),
                 ),
               ),
             ),
