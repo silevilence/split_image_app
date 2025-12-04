@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../processors/image_processor.dart' show ProcessorType;
 import '../processors/processor_io.dart';
 import '../providers/editor_provider.dart';
 import '../providers/pipeline_provider.dart';
@@ -723,6 +724,45 @@ class _PreviewPanelState extends State<PreviewPanel> {
       prefix: settings.prefix,
       format: settings.format,
     );
+
+    // 检查是否有透明像素且使用 JPG 格式
+    if (hasPipeline && settings.format.toLowerCase() == 'jpg') {
+      // 检查 Pipeline 中是否有背景移除处理器
+      final hasBackgroundRemoval = pipelineProvider.processors.any(
+        (p) => p.type == ProcessorType.backgroundRemoval,
+      );
+
+      if (hasBackgroundRemoval) {
+        // 警告用户 JPG 不支持透明
+        if (mounted) {
+          final shouldContinue = await showDialog<bool>(
+            context: context,
+            builder: (context) => ContentDialog(
+              title: const Text('警告：透明背景可能丢失'),
+              content: const Text(
+                '您使用了"背景移除"处理器，但选择了 JPG 格式导出。\n\n'
+                'JPG 格式不支持透明通道，透明区域将变为黑色。\n\n'
+                '建议使用 PNG 格式以保留透明背景。',
+              ),
+              actions: [
+                Button(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('返回修改'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('继续导出'),
+                ),
+              ],
+            ),
+          );
+
+          if (shouldContinue != true) {
+            return;
+          }
+        }
+      }
+    }
 
     // 开始导出
     final progressStream = ImageProcessor.exportSlices(task);

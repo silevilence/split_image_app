@@ -246,8 +246,8 @@ class ImageProcessor {
           final h = slice.processedHeight!;
           final pixels = slice.processedPixels!;
 
-          // 从 RGBA 像素数据创建图片
-          imageToSave = img.Image(width: w, height: h);
+          // 从 RGBA 像素数据创建图片（必须指定 numChannels: 4 以保留 Alpha 通道）
+          imageToSave = img.Image(width: w, height: h, numChannels: 4);
           for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
               final offset = (y * w + x) * 4;
